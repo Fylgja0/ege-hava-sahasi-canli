@@ -43,13 +43,16 @@ jobs:
           fi
 
       - name: OpenSky Ege verisini çek ve normalleştir
+        id: fetch_data
+        continue-on-error: true
         env:
-          # İsteğe bağlı: GitHub Secrets tanımlıysa kullanılır, yoksa önce anonim erişim denenir
-          OPENSKY_USERNAME: ${{ secrets.OPENSKY_USERNAME }}
-          OPENSKY_PASSWORD: ${{ secrets.OPENSKY_PASSWORD }}
+          # İsteğe bağlı OAuth2 istemci kimlik bilgileri: Tanımlıysa Bearer token alınır, yoksa anonim erişim kullanılır
+          OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
+          OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
         run: npm run data:fetch
 
       - name: Güncel veriyi main yerine ayrı data dalına kaydet
+        if: always()
         run: |
           WORK_DIR=$(mktemp -d)
           cp -r data "$WORK_DIR/data"
@@ -65,16 +68,50 @@ jobs:
             git rm -rf . || true
           fi
 
-          mkdir -p data public/data
-          cp "$WORK_DIR/data/latest.json" data/latest.json
-          cp "$WORK_DIR/data/snapshots.json" data/snapshots.json
-          cp "$WORK_DIR/public/data/latest.json" public/data/latest.json
-          cp "$WORK_DIR/public/data/snapshots.json" public/data/snapshots.json
+          # Tekrarlayan hata durumlarında yalnızca lastAttempt.timestamp değiştiyse her 30 dakikada bir gereksiz commit üretme
+          SHOULD_UPDATE=$(node -e '
+            const fs = require("node:fs");
+            const readJson = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; } };
+            const stripTransient = (obj) => {
+              if (!obj || typeof obj !== "object") return null;
+              const copy = JSON.parse(JSON.stringify(obj));
+              if (copy.lastAttempt) {
+                delete copy.lastAttempt.timestamp;
+                delete copy.lastAttempt.message;
+              }
+              return JSON.stringify(copy);
+            };
+            const oldLatest = stripTransient(readJson("data/latest.json"));
+            const newLatest = stripTransient(readJson(process.argv[1] + "/data/latest.json"));
+            const oldSnaps = stripTransient(readJson("data/snapshots.json"));
+            const newSnaps = stripTransient(readJson(process.argv[1] + "/data/snapshots.json"));
+            if (!oldLatest || !oldSnaps || oldLatest !== newLatest || oldSnaps !== newSnaps) {
+              process.stdout.write("true");
+            } else {
+              process.stdout.write("false");
+            }
+          ' "$WORK_DIR")
 
-          git add data/latest.json data/snapshots.json public/data/latest.json public/data/snapshots.json
-          if git diff --cached --quiet; then
-            echo "Veride değişiklik yok, commit atlanıyor."
+          if [ "$SHOULD_UPDATE" = "false" ]; then
+            echo "Son başarılı veri, snapshot geçmişi ve hata türü değişmedi (yalnızca deneme zaman damgası güncellendi); gereksiz commit atlanıyor."
           else
-            git commit -m "chore(data): OpenSky Ege hava sahası anlık veri güncellemesi [skip ci]"
-            git push origin data
+            mkdir -p data public/data
+            cp "$WORK_DIR/data/latest.json" data/latest.json
+            cp "$WORK_DIR/data/snapshots.json" data/snapshots.json
+            cp "$WORK_DIR/public/data/latest.json" public/data/latest.json
+            cp "$WORK_DIR/public/data/snapshots.json" public/data/snapshots.json
+
+            git add data/latest.json data/snapshots.json public/data/latest.json public/data/snapshots.json
+            if git diff --cached --quiet; then
+              echo "Veride değişiklik yok, commit atlanıyor."
+            else
+              git commit -m "chore(data): OpenSky Ege hava sahası anlık veri güncellemesi [skip ci]"
+              git push origin data
+            fi
           fi
+
+      - name: Veri çekim hatası varsa iş (job) sonucunu başarısız işaretle
+        if: always() && steps.fetch_data.outcome != 'success'
+        run: |
+          echo "::error::OpenSky API veri çekimi başarısız oldu. Son başarılı veriler korundu ve data dalı durumu güncellendi; ancak çekim hatası nedeniyle iş başarısız olarak işaretleniyor."
+          exit 1

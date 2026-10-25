@@ -6,11 +6,14 @@
  * Sınır kutusu (Ege): lamin=36.5, lomin=24.5, lamax=40.5, lomax=30.5 (4° x 6° = 24 kare derece)
  *
  * Davranış:
- * 1. Önce anonim erişimi dener.
+ * 1. OPENSKY_CLIENT_ID ve OPENSKY_CLIENT_SECRET tanımlıysa OpenSky OAuth2 (OpenID Connect)
+ *    token uç noktasından client_credentials akışıyla Bearer token alır; tanımlı değilse
+ *    anonim erişim kullanır. Gizli bilgileri asla loglara veya JSON dosyalarına yazmaz.
  * 2. Zaman aşımı (TIMEOUT), boş yanıt (EMPTY_RESPONSE), bağlantı hatası (NETWORK_ERROR)
  *    ve HTTP 429 (HTTP_429) durumlarını açıkça yönetir ve raporlar.
- * 3. Başarısız çağrılarda mevcut son başarılı veriyi (latest.json) SİLMEZ; yalnızca
- *    lastAttempt alanına hatayı kaydeder.
+ * 3. Başarısız çağrılarda mevcut son başarılı veriyi (latest.json ve snapshots.json) SİLMEZ,
+ *    yeni sahte canlı ölçüm eklemez; yalnızca lastAttempt alanına hatayı kaydeder ve
+ *    sıfır olmayan çıkış koduyla (exit code 1) sonlanır.
  * 4. Henüz hiç veri yoksa ve canlı API erişilemezse, veriyi açıkça "DEMO" (isDemo: true)
  *    olarak etiketleyerek yedek veri oluşturur; sahte veriyi asla canlıymış gibi göstermez.
  */
@@ -23,11 +26,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-// Hem Vite public/data dizinine hem de kök data/ dizinine senkronize yazılır
-const OUTPUT_DIRS = [
-  path.join(ROOT_DIR, 'public', 'data'),
-  path.join(ROOT_DIR, 'data')
-];
+// Testlerde OPENSKY_DATA_DIR ile izole dizin kullanılabilir; varsayılan olarak hem public/data hem data/ yazılır
+const OUTPUT_DIRS = process.env.OPENSKY_DATA_DIR
+  ? [path.resolve(process.env.OPENSKY_DATA_DIR)]
+  : [path.join(ROOT_DIR, 'public', 'data'), path.join(ROOT_DIR, 'data')];
 
 const BBOX = {
   lamin: 36.5,
@@ -37,9 +39,15 @@ const BBOX = {
   areaSqDeg: 24
 };
 
-const OPENSKY_BASE_URL = 'https://opensky-network.org/api/states/all';
+const OPENSKY_BASE_URL =
+  process.env.OPENSKY_API_URL || 'https://opensky-network.org/api/states/all';
+const OPENSKY_TOKEN_URL =
+  process.env.OPENSKY_TOKEN_URL ||
+  'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 const REQUEST_TIMEOUT_MS = Number(process.env.OPENSKY_TIMEOUT_MS || 15000);
-const MAX_SNAPSHOTS = 168; // Son 168 kayıt (ör. saatlik 7 gün)
+
+// 30 dakikalık veri toplama aralığında 7 günlük geçmiş: 7 gün * 24 saat * 2 ölçüm/saat = 336 snapshot
+const MAX_SNAPSHOTS = 336;
 
 /**
  * OpenSky API URL'sini oluşturur.
@@ -335,45 +343,93 @@ function createExplicitDemoData(nowIso, attemptInfo) {
 }
 
 /**
- * OpenSky API'ye anonim erişim dener; ortam değişkeni verilmişse ve anonim 401/429 dönerse
- * kimlik bilgisiyle tekrar dener.
+ * OPENSKY_CLIENT_ID ve OPENSKY_CLIENT_SECRET tanımlıysa OpenSky OAuth2 token uç noktasından
+ * client_credentials akışı ile access_token alır. Gizli bilgileri asla loglamaz.
+ * @param {string} clientId
+ * @param {string} clientSecret
+ * @returns {Promise<string>}
+ */
+async function fetchOAuthAccessToken(clientId, clientSecret) {
+  const formBody = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: clientId,
+    client_secret: clientSecret
+  });
+
+  console.log(
+    '[OpenSky] OAuth2 istemci kimlik bilgileri algılandı; OpenID Connect token uç noktasından erişim belirteci isteniyor...'
+  );
+
+  const response = await fetch(OPENSKY_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+      'User-Agent': 'EgeHavaSahasiCanli/0.1 (MCBU-BuyukVeriAnalistligi)'
+    },
+    body: formBody.toString(),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  });
+
+  if (response.status === 429) {
+    const err = new Error('OpenSky OAuth2 token servisi istek limiti aşıldı (HTTP 429).');
+    err.errorType = 'HTTP_429';
+    err.httpStatus = 429;
+    throw err;
+  }
+
+  if (!response.ok) {
+    const err = new Error(
+      `OpenSky OAuth2 token isteği başarısız oldu: HTTP ${response.status} (${response.statusText}).`
+    );
+    err.errorType = 'HTTP_ERROR';
+    err.httpStatus = response.status;
+    throw err;
+  }
+
+  const tokenPayload = await response.json();
+  const accessToken =
+    tokenPayload && typeof tokenPayload.access_token === 'string'
+      ? tokenPayload.access_token.trim()
+      : '';
+
+  if (!accessToken) {
+    const err = new Error('OpenSky OAuth2 yanıtında geçerli bir access_token alanı bulunamadı.');
+    err.errorType = 'HTTP_ERROR';
+    err.httpStatus = response.status;
+    throw err;
+  }
+
+  return accessToken;
+}
+
+/**
+ * OPENSKY_CLIENT_ID ve OPENSKY_CLIENT_SECRET tanımlıysa Authorization: Bearer <access_token>
+ * ile, tanımlı değilse anonim olarak OpenSky API isteği gönderir.
+ * @param {string} url
  */
 async function requestOpenSky(url) {
+  const clientId = (process.env.OPENSKY_CLIENT_ID || '').trim();
+  const clientSecret = (process.env.OPENSKY_CLIENT_SECRET || '').trim();
+
   const headers = {
     Accept: 'application/json',
     'User-Agent': 'EgeHavaSahasiCanli/0.1 (MCBU-BuyukVeriAnalistligi)'
   };
 
-  console.log(`[OpenSky] Anonim istek gönderiliyor: ${url}`);
-  const response = await fetch(url, {
+  if (clientId && clientSecret) {
+    const accessToken = await fetchOAuthAccessToken(clientId, clientSecret);
+    headers.Authorization = `Bearer ${accessToken}`;
+    console.log(`[OpenSky] OAuth2 Bearer kimlik doğrulaması ile istek gönderiliyor: ${url}`);
+  } else {
+    console.log(`[OpenSky] Anonim istek gönderiliyor: ${url}`);
+  }
+
+  return fetch(url, {
     method: 'GET',
     headers,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
   });
-
-  // Eğer anonim erişim 401 veya 429 döndüyse ve ortamda isteğe bağlı kimlik bilgileri tanımlıysa dene
-  if (
-    (response.status === 401 || response.status === 429) &&
-    process.env.OPENSKY_USERNAME &&
-    process.env.OPENSKY_PASSWORD
-  ) {
-    console.warn(
-      `[OpenSky] Anonim erişim HTTP ${response.status} döndü. Ortam değişkenindeki kimlik bilgileri ile yeniden deneniyor...`
-    );
-    const basicAuth = Buffer.from(
-      `${process.env.OPENSKY_USERNAME}:${process.env.OPENSKY_PASSWORD}`
-    ).toString('base64');
-    return fetch(url, {
-      method: 'GET',
-      headers: {
-        ...headers,
-        Authorization: `Basic ${basicAuth}`
-      },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    });
-  }
-
-  return response;
 }
 
 async function main() {
@@ -381,11 +437,17 @@ async function main() {
   const nowUnix = Math.floor(Date.now() / 1000);
   const url = buildOpenSkyUrl();
 
-  const existingLatestPath = path.join(OUTPUT_DIRS[0], 'latest.json');
-  const existingSnapshotsPath = path.join(OUTPUT_DIRS[0], 'snapshots.json');
+  let existingLatest = null;
+  let existingSnapshotsDoc = null;
 
-  const existingLatest = await readJsonSafe(existingLatestPath);
-  const existingSnapshotsDoc = await readJsonSafe(existingSnapshotsPath);
+  for (const dir of OUTPUT_DIRS) {
+    if (!existingLatest) {
+      existingLatest = await readJsonSafe(path.join(dir, 'latest.json'));
+    }
+    if (!existingSnapshotsDoc) {
+      existingSnapshotsDoc = await readJsonSafe(path.join(dir, 'snapshots.json'));
+    }
+  }
 
   let attemptInfo = {
     timestamp: nowIso,
@@ -411,7 +473,9 @@ async function main() {
     }
 
     if (!response.ok) {
-      const err = new Error(`OpenSky API HTTP ${response.status} (${response.statusText}) hatası döndürdü.`);
+      const err = new Error(
+        `OpenSky API HTTP ${response.status} (${response.statusText}) hatası döndürdü.`
+      );
       err.errorType = 'HTTP_ERROR';
       err.httpStatus = response.status;
       throw err;
@@ -490,7 +554,7 @@ async function main() {
     await writeJsonToAllDirs('snapshots.json', snapshotsPayload);
 
     console.log(
-      `[OpenSky] BAŞARILI: Ege hava sahasında ${metrics.aircraftCount} uçak (${metrics.airborneCount} havada) kaydedildi.`
+      `[OpenSky] BAŞARILI: Ege hava sahasında ${metrics.aircraftCount} uçak (${metrics.airborneCount} havada) kaydedildi (Toplam snapshot: ${updatedSnapshots.length}/${MAX_SNAPSHOTS}).`
     );
   } catch (error) {
     let errorType = error?.errorType || 'NETWORK_ERROR';
@@ -520,7 +584,11 @@ async function main() {
     console.warn(`[OpenSky] UYARI (${errorType}): ${errorMessage}`);
 
     // Eğer daha önce kaydedilmiş bir latest.json varsa SİLME, son başarılı veriyi koru!
-    if (existingLatest && Array.isArray(existingLatest.aircraft) && existingLatest.aircraft.length > 0) {
+    if (
+      existingLatest &&
+      Array.isArray(existingLatest.aircraft) &&
+      existingLatest.aircraft.length > 0
+    ) {
       const preservedLatest = {
         ...existingLatest,
         lastAttempt: attemptInfo
@@ -549,6 +617,9 @@ async function main() {
       await writeJsonToAllDirs('latest.json', latestPayload);
       await writeJsonToAllDirs('snapshots.json', snapshotsPayload);
     }
+
+    // Veri dosyaları güvenle korunduktan/yazıldıktan sonra hatayı sıfır olmayan çıkış koduyla bildir
+    process.exitCode = 1;
   }
 }
 

@@ -9,9 +9,9 @@
 
 ## İçindekiler
 
-1. [Kurulum](#1-kurulum)
+1. [Kurulum ve OAuth2 Kimlik Doğrulama Ayarları](#1-kurulum-ve-oauth2-kimlik-doğrulama-ayarları)
 2. [Çalıştırma](#2-çalıştırma)
-3. [Veri Kaynağı ve Sınır Kutusu](#3-veri-kaynağı-ve-sınır-kutusu)
+3. [Veri Kaynağı, Sınır Kutusu ve Saklama Süresi](#3-veri-kaynağı-sınır-kutusu-ve-saklama-süresi)
 4. [Basit Mimari Şeması ve `data` Dalı Stratejisi](#4-basit-mimari-şeması-ve-data-dalı-stratejisi)
 5. [Arayüz Özellikleri ve Erişilebilirlik](#5-arayüz-özellikleri-ve-erişilebilirlik)
 6. [Harita ve Veri Atıfları (OpenStreetMap & OpenSky)](#6-harita-ve-veri-atıfları-openstreetmap--opensky)
@@ -20,7 +20,7 @@
 
 ---
 
-## 1. Kurulum
+## 1. Kurulum ve OAuth2 Kimlik Doğrulama Ayarları
 
 Projeyi yerel ortamınızda kurmak için **Node.js (v20 veya v22+)** ve **npm** gereklidir.
 
@@ -30,10 +30,27 @@ git clone https://github.com/Fylgja0/ege-hava-sahasi-canli.git
 cd ege-hava-sahasi-canli
 
 # Bağımlılıkları yükleyin
-npm install
+npm ci
 ```
 
-> **Güvenlik Notu:** Kaynak kod içerisinde hiçbir API anahtarı, token veya şifre bulunmamaktadır. Veri toplama betiği önce **anonim erişimi** dener. İsteğe bağlı kimlik doğrulaması yalnızca ortam değişkenleri (`OPENSKY_USERNAME`, `OPENSKY_PASSWORD`) veya GitHub Actions Secrets üzerinden okunur.
+### OpenSky OAuth2 (`client_credentials`) ve GitHub Secrets Yapılandırması
+
+> **Güvenlik Notu:** Kaynak kod, JSON veri dosyaları, günlükler (log) veya istemci (frontend) derlemesi içerisinde hiçbir API anahtarı, istemci sırrı veya erişim belirteci (token) **bulunmamaktadır**.
+
+`scripts/fetch-opensky.mjs` iki erişim modunu destekler:
+1. **Anonim Erişim (Varsayılan):** Ortam değişkenleri tanımlı değilse doğrudan anonim `GET` isteği gönderilir.
+2. **OAuth2 İstemci Kimlik Bilgileri (`OPENSKY_CLIENT_ID` ve `OPENSKY_CLIENT_SECRET`):** Bu iki ortam değişkeni tanımlıysa betik önce OpenSky resmi OpenID Connect token uç noktasına (`https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token`) `application/x-www-form-urlencoded` biçiminde `grant_type=client_credentials` ile `POST` isteği gönderir; dönen `access_token` değerini `/api/states/all` çağrısında `Authorization: Bearer <token>` başlığı olarak kullanır.
+
+#### GitHub Actions İçin GitHub Secrets Tanımlama Adımları
+GitHub Actions paylaşımlı IP adreslerinde anonim istek limitine (`HTTP 429`) takılmamak için kendi OpenSky OAuth2 istemci bilgilerinizi depoya güvenli biçimde ekleyebilirsiniz:
+
+1. [OpenSky Network Hesap Paneli](https://opensky-network.org/) üzerinden hesabınıza giriş yapın ve **OAuth2 API Client** oluşturarak `client_id` ile `client_secret` bilgilerinizi alın.
+2. GitHub deponuzun sayfasında üst menüden **Settings** sekmesine tıklayın.
+3. Sol menüden **Secrets and variables** → **Actions** bölümüne gidin.
+4. **New repository secret** düğmesine tıklayarak aşağıdaki iki gizli değişkeni ayrı ayrı ekleyin:
+   - **Name:** `OPENSKY_CLIENT_ID` — **Secret:** *(OpenSky istemci kimliğiniz)*
+   - **Name:** `OPENSKY_CLIENT_SECRET` — **Secret:** *(OpenSky istemci gizli anahtarınız)*
+5. Bu değişkenler tanımlandığında `.github/workflows/fetch-opensky.yml` iş akışı otomatik olarak OAuth2 Bearer kimlik doğrulamasına geçer; tanımlanmadığında ise anonim modda çalışmaya devam eder.
 
 ---
 
@@ -55,7 +72,7 @@ npm run preview
 
 ---
 
-## 3. Veri Kaynağı ve Sınır Kutusu
+## 3. Veri Kaynağı, Sınır Kutusu ve Saklama Süresi
 
 Uygulama, tarayıcıdan doğrudan dış API çağrısı **yapmaz**. Veriler `scripts/fetch-opensky.mjs` Node.js betiği aracılığıyla resmi OpenSky REST API uç noktasından çekilir:
 
@@ -66,17 +83,19 @@ Uygulama, tarayıcıdan doğrudan dış API çağrısı **yapmaz**. Veriler `scr
   - `lamax = 40.5` (Kuzey sınırı)
   - `lomax = 30.5` (Doğu sınırı)
 - **Alan Hesabı ve Kota Uyumu:** $(40.5 - 36.5) \times (30.5 - 24.5) = 4^\circ \times 6^\circ = 24\text{ kare derece}$. Bu alan, OpenSky Network'ün $< 25\text{ kare derece}$ küçük alan kotasına (istek başına yalnızca 1 kredi tüketimi) tam uyumludur.
+- **Snapshot Saklama Sınırı (7 Günlük Geçmiş):** Otomatik veri toplama sıklığı **30 dakika** (saatte 2 ölçüm, günde 48 ölçüm) olduğundan, 7 günlük zaman serisi geçmişini eksiksiz saklamak üzere `MAX_SNAPSHOTS = 336` ($7 \times 24 \times 2 = 336$ kayıt) olarak yapılandırılmıştır.
 
 ### Hata Yönetimi ve Veri Koruma İlkeleri
 `scripts/fetch-opensky.mjs` aşağıdaki durumları açıkça yakalar ve sınıflandırır:
 - `TIMEOUT`: İstek zaman aşımı (varsayılan 15 saniye).
 - `HTTP_429`: İstek limiti aşımı (`Too Many Requests`).
 - `EMPTY_RESPONSE`: Boş veya geçersiz `states` dizisi.
-- `NETWORK_ERROR` / `HTTP_ERROR`: Bağlantı veya sunucu hataları.
+- `NETWORK_ERROR` / `HTTP_ERROR`: Bağlantı veya sunucu/kimlik doğrulama hataları.
 
-**Veri Koruma Garantisi:**
-1. Herhangi bir hata durumunda daha önce kaydedilmiş son başarılı `latest.json` verisi **asla silinmez**; yalnızca `lastAttempt` alanı hata detayı ile güncellenir.
+**Veri Koruma ve Çıkış Kodu Garantisi:**
+1. Herhangi bir hata durumunda daha önce kaydedilmiş son başarılı `latest.json` ve `snapshots.json` verileri **asla silinmez**, hata anında `snapshots.json` içerisine sahte canlı ölçüm eklenmez; yalnızca `lastAttempt` alanı hata detayı ile güncellenir.
 2. Henüz diskte hiç gerçek veri yoksa ve canlı API çağrısı başarısız olursa, hata gizlenmez; arayüzün doğrulanabilmesi için üretilen yedek veri `isDemo: true` ve `source: "demo-fallback"` olarak işaretlenir, çağrı adlarına `[DEMO]` etiketi eklenir ve arayüzde açıkça **"DEMO VERİSİ AKTİF (Canlı Veri Değil)"** uyarısı gösterilir.
+3. Veri dosyaları güvenle korunduktan sonra `npm run data:fetch` komutu **sıfır olmayan çıkış koduyla (`exit code 1`)** sonlanarak CI/CD izleme sistemlerine hatayı doğru biçimde bildirir.
 
 ---
 
@@ -86,8 +105,8 @@ Sürüm kodunun bulunduğu korunan `main` dalının otomatik veri commit'leriyle
 
 ```mermaid
 flowchart LR
-    A["OpenSky Network API\n/api/states/all\n(36.5-40.5K, 24.5-30.5D)"] -->|1. Anonim HTTP GET| B["scripts/fetch-opensky.mjs\n(GitHub Actions / Yerel CLI)"]
-    B -->|2. Normalleştirme & Hata Koruma| C["latest.json & snapshots.json"]
+    A["OpenSky Network API\n/api/states/all\n(OAuth2 Bearer / Anonim)"] -->|1. HTTP GET| B["scripts/fetch-opensky.mjs\n(GitHub Actions / Yerel CLI)"]
+    B -->|2. Normalleştirme & Hata Koruma| C["latest.json & snapshots.json\n(MAX_SNAPSHOTS = 336)"]
     C -->|3a. Otomatik Push| D[("GitHub: data Dalı\n(Yalnızca Veri Dosyaları)")]
     C -->|3b. Yerel Dosya| E[("public/data/\n(Yerel Geliştirme)")]
     D -->|4. HTTPS Raw Fetch| F["Vite + TypeScript Arayüzü\n(main Dalından Derlenen İstemci)"]
@@ -95,10 +114,12 @@ flowchart LR
     F --> G["3 KPI Kartı + Leaflet Radar Haritası\n+ Uçak Detay Paneli + Chart.js + Erişilebilir Tablo"]
 ```
 
-### Arayüzün `data` Dalındaki Veriyi Okuma Yöntemi
+### Arayüzün `data` Dalındaki Veriyi Okuma Yöntemi ve İş Akışı Davranışı
 1. **Otomatik Veri Toplama (`.github/workflows/fetch-opensky.yml`):**
    - Her 30 dakikada bir (`cron: '*/30 * * * *'`) veya GitHub Actions sekmesinden **manuel (`workflow_dispatch`)** olarak tetiklenir.
-   - Uygulama kodunu `main` dalından alır, varsa `origin/data` dalındaki geçmiş `latest.json` ve `snapshots.json` dosyalarını geri yükler, `npm run data:fetch` çalıştırır ve oluşan JSON dosyalarını **`main` dalına dokunmadan yalnızca `data` dalına** (`origin/data`) yazar.
+   - Uygulama kodunu `main` dalından alır; uzak depoda `origin/data` dalı mevcutsa geçmiş `latest.json` ve `snapshots.json` dosyalarını geri yükler, henüz `data` dalı yoksa ilk çalışmada `data` dalını otomatik olarak oluşturur.
+   - `npm run data:fetch` çalıştıktan sonra (çekim başarısız olsa bile) yayınlama adımı çalışır. Ancak tekrarlayan API kesintilerinde her 30 dakikada bir yalnızca `lastAttempt.timestamp` değiştiği için gereksiz commit üretilmesini önlemek adına, son başarılı veri (`fetchedAt`), snapshot geçmişi ve hata türü (`errorType`) değişmemişse yeni commit atılmaz.
+   - Yayınlama adımı tamamlandıktan sonra, eğer `npm run data:fetch` hata döndürmüşse son adım işi (`job`) **başarısız (`failed`)** olarak işaretler.
 2. **İstemci (Tarayıcı) Veri Okuma (`src/dataService.ts`):**
    - İstemci, `VITE_DATA_BASE_URL` ortam değişkeni tanımlıysa veya GitHub Pages (`*.github.io`) üzerinde çalışıyorsa doğrudan `data` dalındaki ham JSON adresinden (`https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data/latest.json` ve `snapshots.json`) veriyi okur.
    - Yerel geliştirmede (`npm run dev` / `npm run preview`) veya uzak dala henüz erişilemediğinde otomatik olarak yerel `./data/latest.json` ve `./data/snapshots.json` dosyalarını okur.
@@ -134,4 +155,4 @@ Bu proje **MIT Lisansı** altında lisanslanmıştır. Ayrıntılar için `LICEN
 
 ## 8. Yapay Zekâ Kullanım Beyanı
 
-Bu projenin ilk ara kontrol temel sürümünün geliştirilmesinde (proje iskeletinin oluşturulması, `scripts/fetch-opensky.mjs` veri normalleştirme ve hata koruma mantığının yazılması, Leaflet harita ve Chart.js grafik bileşenlerinin erişilebilir tablo alternatifleriyle yapılandırılması ve GitHub Actions `data` dalı iş akışının tasarlanması) yapay zekâ destekli kodlama asistanından yararlanılmıştır. Üretilen tüm kodlar, tip tanımları ve derleme çıktıları yerel terminal testleriyle (`npm run data:fetch`, `npm run build`) doğrulanmıştır.
+Bu projenin ilk ara kontrol temel sürümünün geliştirilmesinde (proje iskeletinin oluşturulması, `scripts/fetch-opensky.mjs` veri normalleştirme, OAuth2 kimlik doğrulama ve hata koruma mantığının yazılması, Leaflet harita ve Chart.js grafik bileşenlerinin erişilebilir tablo alternatifleriyle yapılandırılması ve GitHub Actions `data` dalı iş akışının tasarlanması) yapay zekâ destekli kodlama asistanından yararlanılmıştır. Üretilen tüm kodlar, tip tanımları ve derleme çıktıları yerel terminal testleriyle (`npm ci`, `npm run data:fetch`, `npm run build`) doğrulanmıştır.
