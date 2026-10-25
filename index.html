@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Manisa Celal Bayar Üniversitesi Büyük Veri Analistliği - Ege Hava Sahası Canlı Gözlem ve Analiz Paneli"
+    />
+    <title>Ege Hava Sahası Canlı | MCBÜ Büyük Veri Analistliği</title>
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Ana içeriğe atla</a>
+
+    <header class="app-header">
+      <div class="container header-inner">
+        <div class="brand-block">
+          <div class="radar-pulse-dot" aria-hidden="true"></div>
+          <div>
+            <span class="eyebrow">MCBÜ Büyük Veri Analistliği • İlk Ara Kontrol Sürümü</span>
+            <h1 class="app-title">Ege Hava Sahası Canlı</h1>
+          </div>
+        </div>
+
+        <div class="meta-controls">
+          <div class="update-meta" aria-live="polite">
+            <div class="meta-row">
+              <span id="data-source-badge" class="badge badge-accent">Yükleniyor...</span>
+              <span id="data-age-badge" class="badge badge-outline">--</span>
+            </div>
+            <p id="last-updated-text" class="meta-timestamp">
+              Son Güncelleme: Veri okunuyor...
+            </p>
+            <p class="meta-source">
+              Veri Kaynağı:
+              <a
+                href="https://opensky-network.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                >OpenSky Network</a
+              >
+              (<a
+                href="https://openskynetwork.github.io/opensky-api/rest.html#all-state-vectors"
+                target="_blank"
+                rel="noopener noreferrer"
+                ><code>/api/states/all</code></a
+              >
+              • Sınır: 36.5°–40.5°K, 24.5°–30.5°D • 24 kare derece)
+            </p>
+          </div>
+
+          <div class="toolbar-actions">
+            <div class="state-switcher">
+              <label for="ui-state-select" class="sr-only-mobile">Durum Görünümü:</label>
+              <select
+                id="ui-state-select"
+                class="control-select"
+                aria-label="Arayüz durum görünümünü test et"
+              >
+                <option value="auto">Durum: Gerçek Veri (Otomatik)</option>
+                <option value="loading">Durum Önizleme: Yükleniyor</option>
+                <option value="empty">Durum Önizleme: Boş Sonuç</option>
+                <option value="stale">Durum Önizleme: Eski Veri</option>
+                <option value="error">Durum Önizleme: Hata (HTTP 429 / Zaman Aşımı)</option>
+              </select>
+            </div>
+            <button type="button" id="refresh-btn" class="btn btn-primary">
+              Veriyi Yenile
+            </button>
+            <button type="button" id="reset-map-btn" class="btn btn-secondary">
+              Ege Odağı
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="container main-layout" tabindex="-1">
+      <!-- Durum Bildirim Bantları: Yükleniyor, Boş Sonuç, Hata, Eski Veri ve Demo -->
+      <section aria-label="Sistem ve Veri Durumu Bildirimleri" id="status-banners" class="status-stack">
+        <div id="state-loading" class="status-banner status-loading" role="status" hidden>
+          <span class="status-spinner" aria-hidden="true"></span>
+          <div>
+            <strong>Yükleniyor:</strong> Ege hava sahası uçuş verileri (<code>latest.json</code> ve
+            <code>snapshots.json</code>) okunuyor, lütfen bekleyin...
+          </div>
+        </div>
+
+        <div id="state-demo" class="status-banner status-demo" role="alert" hidden>
+          <div>
+            <strong>DEMO VERİSİ AKTİF (Canlı Veri Değil):</strong>
+            <span id="demo-banner-text">
+              OpenSky API canlı çağrısı başarısız olduğu ve daha önce kaydedilmiş canlı veri bulunmadığı
+              için açıkça DEMO olarak etiketlenmiş örnek veri gösterilmektedir. Bu kayıtlar canlı hava
+              trafiğini temsil etmez.
+            </span>
+          </div>
+        </div>
+
+        <div id="state-error" class="status-banner status-error" role="alert" hidden>
+          <div>
+            <strong>Veri Çekim Hatası (<span id="error-type-code">HATA</span>):</strong>
+            <span id="error-banner-text">
+              OpenSky API yanıtı alınamadı. Son başarılı veri korunarak ekranda tutulmaktadır.
+            </span>
+          </div>
+        </div>
+
+        <div id="state-stale" class="status-banner status-stale" role="status" hidden>
+          <div>
+            <strong>Eski Veri Uyarısı:</strong>
+            <span id="stale-banner-text">
+              Görüntülenen son başarılı uçuş verisi 30 dakikadan daha eskidir.
+            </span>
+          </div>
+        </div>
+
+        <div id="state-empty" class="status-banner status-empty" role="status" hidden>
+          <div>
+            <strong>Boş Sonuç:</strong>
+            Seçili Ege sınır kutusunda (36.5°–40.5°K, 24.5°–30.5°D) veya uygulanan filtrede eşleşen
+            aktif uçak bulunamadı.
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 KPI Kartı -->
+      <section aria-labelledby="kpi-heading" class="kpi-section">
+        <h2 id="kpi-heading" class="sr-only">Temel Performans Göstergeleri (KPI)</h2>
+        <div class="kpi-grid">
+          <article class="kpi-card" aria-labelledby="kpi-title-count">
+            <div class="kpi-header">
+              <span id="kpi-title-count" class="kpi-label">Ege Hava Sahası Aktif Uçak</span>
+              <span class="kpi-tag">24°² Sınır Kutusu</span>
+            </div>
+            <p id="kpi-aircraft-count" class="kpi-value">--</p>
+            <p id="kpi-aircraft-sub" class="kpi-sub">Havada: -- | Yerde: --</p>
+          </article>
+
+          <article class="kpi-card" aria-labelledby="kpi-title-altitude">
+            <div class="kpi-header">
+              <span id="kpi-title-altitude" class="kpi-label">Ortalama Barometrik İrtifa</span>
+              <span class="kpi-tag">Havadaki Uçaklar</span>
+            </div>
+            <p id="kpi-avg-altitude" class="kpi-value">--</p>
+            <p id="kpi-altitude-sub" class="kpi-sub">Yaklaşık -- ft (deniz seviyesinden)</p>
+          </article>
+
+          <article class="kpi-card" aria-labelledby="kpi-title-speed">
+            <div class="kpi-header">
+              <span id="kpi-title-speed" class="kpi-label">Ortalama Yer Hızı</span>
+              <span class="kpi-tag">Havadaki Uçaklar</span>
+            </div>
+            <p id="kpi-avg-speed" class="kpi-value">--</p>
+            <p id="kpi-speed-sub" class="kpi-sub">Yaklaşık -- knot (-- m/s)</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- İnteraktif Ege Haritası ve Uçak Seçim Detay Paneli -->
+      <section aria-labelledby="map-section-heading" class="workspace-grid">
+        <div class="panel map-panel">
+          <div class="panel-header">
+            <div>
+              <h2 id="map-section-heading" class="panel-title">
+                İnteraktif Ege Hava Sahası Radar Haritası
+              </h2>
+              <p class="panel-subtitle">
+                Sınır kutusu: <code>lamin=36.5, lomin=24.5, lamax=40.5, lomax=30.5</code>. Detay için
+                haritadaki bir uçağa veya aşağıdaki tabloya tıklayın.
+              </p>
+            </div>
+            <div class="map-legend" aria-label="Harita İşaretçi Açıklaması">
+              <span class="legend-item">
+                <span class="legend-dot dot-airborne"></span> Havada
+              </span>
+              <span class="legend-item">
+                <span class="legend-dot dot-ground"></span> Yerde
+              </span>
+              <span class="legend-item">
+                <span class="legend-dot dot-selected"></span> Seçili
+              </span>
+            </div>
+          </div>
+
+          <div
+            id="aegean-map"
+            class="radar-map-container"
+            role="region"
+            aria-label="Ege Hava Sahası Uçuş Haritası"
+          ></div>
+        </div>
+
+        <!-- Uçak Seçildiğinde İrtifa ve Hız Detay Paneli -->
+        <aside
+          id="aircraft-detail-panel"
+          class="panel detail-panel"
+          aria-labelledby="detail-panel-heading"
+          aria-live="polite"
+        >
+          <div class="panel-header">
+            <div>
+              <h2 id="detail-panel-heading" class="panel-title">Seçili Uçak İrtifa ve Hız Detayı</h2>
+              <p class="panel-subtitle">Anlık telemetri ve konum vektörü</p>
+            </div>
+            <button
+              type="button"
+              id="clear-selection-btn"
+              class="btn btn-secondary btn-sm"
+              hidden
+            >
+              Seçimi Kaldır
+            </button>
+          </div>
+
+          <div id="detail-empty-state" class="detail-empty">
+            <p>
+              <strong>Henüz bir uçak seçilmedi.</strong>
+            </p>
+            <p>
+              İrtifa, hız, dikey tırmanış/alçalış oranı ve yön bilgilerini incelemek için harita
+              üzerindeki bir uçak simgesini veya aşağıdaki erişilebilir uçak tablosundaki
+              <em>"Detay &amp; Odakla"</em> düğmesini seçin.
+            </p>
+          </div>
+
+          <div id="detail-content" class="detail-body" hidden>
+            <div class="detail-identity">
+              <div>
+                <span class="detail-label">Çağrı Adı (Callsign)</span>
+                <h3 id="detail-callsign" class="detail-callsign">--</h3>
+              </div>
+              <span id="detail-status-badge" class="badge badge-accent">Havada</span>
+            </div>
+
+            <div class="telemetry-highlight-grid">
+              <div class="telemetry-box">
+                <span class="telemetry-title">Barometrik İrtifa</span>
+                <strong id="detail-baro-alt" class="telemetry-primary">-- m</strong>
+                <span id="detail-baro-ft" class="telemetry-secondary">-- ft</span>
+              </div>
+
+              <div class="telemetry-box">
+                <span class="telemetry-title">Yer Hızı (Ground Speed)</span>
+                <strong id="detail-speed-kmh" class="telemetry-primary">-- km/s</strong>
+                <span id="detail-speed-sub" class="telemetry-secondary">-- kt (-- m/s)</span>
+              </div>
+            </div>
+
+            <dl class="detail-list">
+              <div class="detail-row">
+                <dt>ICAO24 Adresi</dt>
+                <dd><code id="detail-icao24">--</code></dd>
+              </div>
+              <div class="detail-row">
+                <dt>Menşei Ülke</dt>
+                <dd id="detail-country">--</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Jeodezik İrtifa (GNSS)</dt>
+                <dd id="detail-geo-alt">--</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Dikey Hız (Tırmanış/Alçalış)</dt>
+                <dd id="detail-vertical-rate">--</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Baş Açısı (True Track)</dt>
+                <dd id="detail-heading">--</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Koordinatlar (Enlem / Boylam)</dt>
+                <dd id="detail-coords">--</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Squawk Kodu</dt>
+                <dd id="detail-squawk">--</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Son Temas Zamanı</dt>
+                <dd id="detail-last-contact">--</dd>
+              </div>
+            </dl>
+
+            <div class="detail-actions">
+              <button type="button" id="focus-selected-btn" class="btn btn-primary btn-block">
+                Haritada Bu Uçağa Odaklan
+              </button>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Saatlere Göre Uçuş Sayısı Grafiği + Metinsel Özet + Tablo Alternatifi -->
+      <section aria-labelledby="chart-heading" class="panel chart-section">
+        <div class="panel-header">
+          <div>
+            <h2 id="chart-heading" class="panel-title">
+              Saatlere ve Çekim Zamanlarına Göre Uçuş Sayısı Grafiği
+            </h2>
+            <p class="panel-subtitle">
+              <code>snapshots.json</code> zaman damgalı kayıt geçmişi (Metinsel özet ve erişilebilir
+              tablo alternatifi aşağıdadır)
+            </p>
+          </div>
+        </div>
+
+        <div class="chart-wrapper">
+          <canvas
+            id="hourly-flights-chart"
+            tabindex="0"
+            role="img"
+            aria-label="Saatlere göre uçuş sayısı grafiği"
+          ></canvas>
+        </div>
+
+        <p id="chart-text-summary" class="chart-summary" aria-live="polite">
+          Grafik metinsel özeti hazırlanıyor...
+        </p>
+
+        <details class="accessible-chart-table">
+          <summary class="accessible-summary-trigger">
+            Grafik Veri Tablosu Alternatifini Göster / Gizle (Erişilebilir Tablo Görünümü)
+          </summary>
+          <div class="table-responsive">
+            <table class="radar-table">
+              <caption>
+                Zaman damgalı Ege hava sahası uçuş sayısı, ortalama irtifa ve ortalama hız geçmişi
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Çekim Zamanı (TSİ)</th>
+                  <th scope="col">Toplam Uçak</th>
+                  <th scope="col">Havadaki Uçak</th>
+                  <th scope="col">Ortalama İrtifa</th>
+                  <th scope="col">Ortalama Hız ve Kaynak</th>
+                </tr>
+              </thead>
+              <tbody id="chart-table-body">
+                <tr>
+                  <td colspan="5" class="empty-cell">Yükleniyor...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <!-- Harita ile Aynı Bilgileri Sunan Erişilebilir Uçak Listesi / Tablosu -->
+      <section aria-labelledby="table-heading" class="panel table-section">
+        <div class="panel-header table-header-bar">
+          <div>
+            <h2 id="table-heading" class="panel-title">
+              Erişilebilir Ege Hava Sahası Uçak Listesi ve Tablosu
+            </h2>
+            <p class="panel-subtitle">
+              Harita üzerindeki tüm uçakların klavye ve ekran okuyucu uyumlu tam tablo görünümü
+              (<span id="table-count-label">0 uçak</span>)
+            </p>
+          </div>
+
+          <div class="table-filters">
+            <div class="filter-group">
+              <label for="aircraft-search">Ara (Çağrı Adı / ICAO24 / Ülke):</label>
+              <input
+                type="search"
+                id="aircraft-search"
+                class="control-input"
+                placeholder="Örn: THY, 4baa, Turkey..."
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="filter-group">
+              <label for="aircraft-filter">Konum Durumu:</label>
+              <select id="aircraft-filter" class="control-select">
+                <option value="all">Tümü (Havada + Yerde)</option>
+                <option value="airborne">Yalnızca Havada</option>
+                <option value="ground">Yalnızca Yerde</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="radar-table" id="aircraft-table">
+            <caption>
+              Ege Hava Sahası anlık uçak listesi: Çağrı adı, ICAO24, ülke, barometrik irtifa, yer
+              hızı, yön, koordinatlar ve detay seçimi
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Çağrı Adı</th>
+                <th scope="col">ICAO24</th>
+                <th scope="col">Menşei Ülke</th>
+                <th scope="col">Barometrik İrtifa</th>
+                <th scope="col">Yer Hızı</th>
+                <th scope="col">Yön (°)</th>
+                <th scope="col">Konum (Enlem, Boylam)</th>
+                <th scope="col">Durum</th>
+                <th scope="col">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="aircraft-table-body">
+              <tr>
+                <td colspan="9" class="empty-cell">Uçuş verileri yükleniyor...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <div class="container footer-inner">
+        <div>
+          <p>
+            <strong>Ege Hava Sahası Canlı</strong> — Manisa Celal Bayar Üniversitesi Büyük Veri
+            Analistliği Programı (Bulut Bilişim ve Siber Güvenlik entegrasyonuna hazır temel sürüm).
+          </p>
+          <p class="footer-attribution">
+            Harita Verisi: &copy;
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noopener noreferrer"
+              >OpenStreetMap</a
+            >
+            katkıda bulunanları (ODbL). Uçuş Verisi:
+            <a href="https://opensky-network.org" target="_blank" rel="noopener noreferrer"
+              >The OpenSky Network</a
+            >
+            (<code>/api/states/all</code>).
+          </p>
+        </div>
+        <div class="footer-right">
+          <span class="badge badge-outline">WCAG AA Kontrast Uyumlu</span>
+          <span class="badge badge-outline">360px – 1440px Duyarlı Tasarım</span>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

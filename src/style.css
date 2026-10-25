@@ -1,0 +1,934 @@
+:root {
+  --bg-base: #060d14;
+  --bg-panel: #0b1622;
+  --bg-panel-elevated: #102030;
+  --bg-input: #08121c;
+  --border-subtle: #1c354d;
+  --border-strong: #284c6e;
+
+  /* Tek Vurgu Rengi (Radar Camgöbeği-Yeşili) - Koyu zemin üzerinde > 9.8:1 WCAG AAA/AA kontrast */
+  --accent: #2dd4bf;
+  --accent-bright: #5eead4;
+  --accent-dim: rgba(45, 212, 191, 0.14);
+  --accent-border: rgba(45, 212, 191, 0.48);
+  --accent-contrast-text: #041f1c;
+
+  /* Metin Renkleri (WCAG AA/AAA yüksek kontrast) */
+  --text-primary: #eef7f5;
+  --text-secondary: #a3c2bb;
+  --text-muted: #88aba3;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-base);
+  background-image: radial-gradient(
+      circle at 50% 0%,
+      rgba(45, 212, 191, 0.08) 0%,
+      transparent 55%
+    ),
+    linear-gradient(rgba(45, 212, 191, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+  overflow-x: hidden;
+}
+
+/* Görünür Klavye Odağı (WCAG 2.4.7 Focus Visible) */
+:focus-visible {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.25) !important;
+}
+
+/* İçeriğe Atla Bağlantısı */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 12px;
+  z-index: 9999;
+  padding: 0.65rem 1.1rem;
+  background-color: var(--accent);
+  color: var(--accent-contrast-text);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--accent-bright);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background-color: var(--bg-panel-elevated);
+  padding: 0.12rem 0.38rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-bright);
+}
+
+.container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Üst Bilgi (Header) */
+.app-header {
+  background-color: rgba(11, 22, 34, 0.94);
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(8px);
+  padding: 1rem 0;
+}
+
+.header-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.radar-pulse-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-dim), 0 0 12px var(--accent);
+  flex-shrink: 0;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.app-title {
+  margin: 0.1rem 0 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.meta-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.update-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.meta-timestamp {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.meta-source {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.state-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+}
+
+/* Rozetler (Badges) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-accent {
+  background-color: var(--accent);
+  color: var(--accent-contrast-text);
+}
+
+.badge-outline {
+  background-color: var(--bg-panel-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--accent-border);
+}
+
+/* Düğmeler ve Form Kontrolleri */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.95rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  border: 1px solid transparent;
+  min-height: 38px;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: var(--accent-contrast-text);
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-bright);
+}
+
+.btn-secondary {
+  background-color: var(--bg-panel-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
+.btn-sm {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  min-height: 32px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.control-select,
+.control-input {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.86rem;
+  min-height: 38px;
+  width: 100%;
+}
+
+.control-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Ana Yerleşim */
+.main-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-top: 1.25rem;
+  padding-bottom: 2rem;
+}
+
+/* Durum Bildirim Bantları (Yükleniyor, Boş Sonuç, Hata, Eski Veri, Demo) */
+.status-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-panel-elevated);
+  border: 1px solid var(--accent-border);
+  border-left: 5px solid var(--accent);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.status-banner[hidden] {
+  display: none !important;
+}
+
+.status-demo,
+.status-error {
+  border-style: dashed;
+  border-width: 2px;
+  border-left-style: solid;
+  border-left-width: 6px;
+}
+
+.status-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid var(--accent-dim);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 3 KPI Kartı */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.kpi-card {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.kpi-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpi-tag {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  background-color: var(--accent-dim);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.kpi-value {
+  margin: 0.15rem 0 0;
+  font-size: 2rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1.15;
+}
+
+.kpi-sub {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+/* Paneller ve Harita + Detay Izgarası */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+.panel {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.panel-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-airborne {
+  background-color: var(--accent);
+}
+
+.dot-ground {
+  background-color: var(--text-secondary);
+}
+
+.dot-selected {
+  background-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Leaflet Harita Konteyneri ve Koyu Radar Filtresi */
+.radar-map-container {
+  width: 100%;
+  height: 420px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background-color: #050c12;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.radar-map-tiles {
+  filter: invert(100%) hue-rotate(175deg) brightness(88%) contrast(95%) saturate(60%);
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background-color: #050c12;
+}
+
+.leaflet-control-attribution {
+  background-color: rgba(6, 13, 20, 0.88) !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.72rem !important;
+  padding: 2px 6px !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--accent) !important;
+}
+
+/* Harita Üzerindeki Uçak İşaretçileri */
+.aircraft-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.aircraft-marker {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1.5px solid rgba(45, 212, 191, 0.55);
+  border-radius: 50%;
+  background-color: rgba(6, 13, 20, 0.88);
+  color: var(--accent);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.aircraft-marker:hover {
+  transform: scale(1.15);
+  background-color: var(--bg-panel-elevated);
+  border-color: var(--accent);
+}
+
+.aircraft-marker.is-ground {
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
+}
+
+.aircraft-marker.is-selected {
+  background-color: var(--accent);
+  color: var(--accent-contrast-text);
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.35), 0 0 16px var(--accent);
+  transform: scale(1.22);
+}
+
+.aircraft-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.aircraft-tag {
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(6, 13, 20, 0.92);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.aircraft-marker.is-selected .aircraft-tag {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
+/* Seçili Uçak Detay Paneli */
+.detail-empty {
+  background-color: var(--bg-panel-elevated);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 1.1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.detail-empty p {
+  margin: 0 0 0.5rem;
+}
+
+.detail-empty p:last-child {
+  margin-bottom: 0;
+}
+
+.detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.detail-body[hidden] {
+  display: none !important;
+}
+
+.detail-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.detail-callsign {
+  margin: 0.1rem 0 0;
+  font-size: 1.4rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.telemetry-highlight-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.telemetry-box {
+  background-color: var(--bg-panel-elevated);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.telemetry-title {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.telemetry-primary {
+  font-size: 1.3rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.telemetry-secondary {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.detail-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(28, 53, 77, 0.55);
+  font-size: 0.88rem;
+}
+
+.detail-row dt {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.detail-row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* Grafik Bölümü */
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 290px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+}
+
+.chart-summary {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  background-color: var(--bg-panel-elevated);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.accessible-chart-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-input);
+  padding: 0.6rem 0.85rem;
+}
+
+.accessible-summary-trigger {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
+}
+
+/* Tablo ve Filtreler */
+.table-header-bar {
+  align-items: flex-end;
+}
+
+.table-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.radar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  text-align: left;
+}
+
+.radar-table caption {
+  padding: 0.6rem 0.85rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: left;
+  background-color: var(--bg-panel-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.radar-table th,
+.radar-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.radar-table thead th {
+  background-color: var(--bg-panel-elevated);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.radar-table tbody tr {
+  background-color: var(--bg-panel);
+  transition: background-color 0.12s ease;
+}
+
+.radar-table tbody tr:hover {
+  background-color: var(--bg-panel-elevated);
+}
+
+.radar-table tbody tr.is-selected-row {
+  background-color: var(--accent-dim);
+  outline: 1px solid var(--accent);
+}
+
+.empty-cell {
+  text-align: center;
+  padding: 1.5rem !important;
+  color: var(--text-secondary);
+}
+
+/* Alt Bilgi (Footer) */
+.app-footer {
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--bg-panel);
+  padding: 1.25rem 0;
+  margin-top: auto;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footer-inner p {
+  margin: 0 0 0.25rem;
+}
+
+.footer-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* 360px Mobil Ekran İyileştirmeleri */
+@media (max-width: 420px) {
+  .container {
+    padding: 0 0.65rem;
+  }
+
+  .panel {
+    padding: 0.8rem;
+  }
+
+  .app-title {
+    font-size: 1.22rem;
+  }
+
+  .kpi-value {
+    font-size: 1.65rem;
+  }
+
+  .telemetry-highlight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .radar-map-container {
+    height: 320px;
+  }
+
+  .toolbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Tablet ve Masaüstü (1440px'e kadar geniş yerleşim) */
+@media (min-width: 768px) {
+  .container {
+    padding: 0 1.5rem;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .table-filters {
+    flex-direction: row;
+    width: auto;
+  }
+
+  .filter-group {
+    min-width: 220px;
+  }
+
+  .footer-inner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 1024px) {
+  .header-inner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .meta-controls {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .meta-row {
+    justify-content: flex-end;
+  }
+
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1.85fr) minmax(340px, 1fr);
+    align-items: start;
+  }
+
+  .radar-map-container {
+    height: 520px;
+  }
+}

@@ -1,0 +1,80 @@
+name: OpenSky Ege Veri Toplama (Data Dalı)
+
+on:
+  schedule:
+    # Küçük alan kotasını (24 kare derece = 1 kredi/istek) korumak için 30 dakikada bir çalıştırılır
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manuel tetikleme nedeni (isteğe bağlı)'
+        required: false
+        default: 'Manuel veri güncelleme'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-and-publish-data:
+    name: OpenSky Verisini Çek ve data Dalına Yaz
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Uygulama kodunu main dalından al
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Node.js ortamını hazırla
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Varsa mevcut data dalındaki son başarılı verileri geri yükle
+        run: |
+          git fetch origin data:refs/remotes/origin/data || true
+          if git show-ref --verify --quiet refs/remotes/origin/data; then
+            echo "Mevcut data dalı bulundu; geçmiş latest.json ve snapshots.json yükleniyor..."
+            git checkout refs/remotes/origin/data -- data/latest.json data/snapshots.json public/data/latest.json public/data/snapshots.json 2>/dev/null || true
+          else
+            echo "Henüz uzak depoda data dalı yok; ilk kez oluşturulacak."
+          fi
+
+      - name: OpenSky Ege verisini çek ve normalleştir
+        env:
+          # İsteğe bağlı: GitHub Secrets tanımlıysa kullanılır, yoksa önce anonim erişim denenir
+          OPENSKY_USERNAME: ${{ secrets.OPENSKY_USERNAME }}
+          OPENSKY_PASSWORD: ${{ secrets.OPENSKY_PASSWORD }}
+        run: npm run data:fetch
+
+      - name: Güncel veriyi main yerine ayrı data dalına kaydet
+        run: |
+          WORK_DIR=$(mktemp -d)
+          cp -r data "$WORK_DIR/data"
+          cp -r public "$WORK_DIR/public"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git show-ref --verify --quiet refs/remotes/origin/data; then
+            git checkout -B data refs/remotes/origin/data
+          else
+            git checkout --orphan data
+            git rm -rf . || true
+          fi
+
+          mkdir -p data public/data
+          cp "$WORK_DIR/data/latest.json" data/latest.json
+          cp "$WORK_DIR/data/snapshots.json" data/snapshots.json
+          cp "$WORK_DIR/public/data/latest.json" public/data/latest.json
+          cp "$WORK_DIR/public/data/snapshots.json" public/data/snapshots.json
+
+          git add data/latest.json data/snapshots.json public/data/latest.json public/data/snapshots.json
+          if git diff --cached --quiet; then
+            echo "Veride değişiklik yok, commit atlanıyor."
+          else
+            git commit -m "chore(data): OpenSky Ege hava sahası anlık veri güncellemesi [skip ci]"
+            git push origin data
+          fi
