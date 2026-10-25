@@ -60,7 +60,7 @@ export class AegeanRadarMap {
   }
 
   private createAircraftIcon(aircraft: AircraftState, isSelected: boolean): L.DivIcon {
-    const rotation = Number.isFinite(aircraft.trueTrackDeg) ? aircraft.trueTrackDeg : 0;
+    const rotation = Number.isFinite(aircraft.trueTrackDeg) ? Number(aircraft.trueTrackDeg) : 0;
     const statusClass = isSelected
       ? 'aircraft-marker is-selected'
       : aircraft.onGround
@@ -68,22 +68,31 @@ export class AegeanRadarMap {
       : 'aircraft-marker';
 
     const altText =
-      aircraft.baroAltitudeM !== null ? `${aircraft.baroAltitudeM} m` : 'Yerde / Bilinmiyor';
-    const spdText = aircraft.velocityKmh !== null ? `${aircraft.velocityKmh} km/s` : '0 km/s';
+      aircraft.baroAltitudeM !== null
+        ? `${Number(aircraft.baroAltitudeM).toLocaleString('tr-TR')} m`
+        : 'Yerde / Bilinmiyor';
+    const spdText =
+      aircraft.velocityKmh !== null ? `${Number(aircraft.velocityKmh)} km/h` : '0 km/h';
+
+    const safeCallsign = escapeHtml(aircraft.callsign);
+    const safeOriginCountry = escapeHtml(aircraft.originCountry);
+    const safeTag = escapeHtml(aircraft.callsign.replace(' [DEMO]', ''));
+    const safeAltText = escapeHtml(altText);
+    const safeSpdText = escapeHtml(spdText);
 
     const html = `
       <button
         type="button"
         class="${statusClass}"
-        aria-label="Uçak ${aircraft.callsign}, İrtifa ${altText}, Hız ${spdText}"
-        title="${aircraft.callsign} (${aircraft.originCountry}) - İrtifa: ${altText}, Hız: ${spdText}"
+        aria-label="Uçak ${safeCallsign}, İrtifa ${safeAltText}, Hız ${safeSpdText}"
+        title="${safeCallsign} (${safeOriginCountry}) - İrtifa: ${safeAltText}, Hız: ${safeSpdText}"
       >
         <span class="aircraft-glyph" style="transform: rotate(${rotation}deg);" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="22" height="22" focusable="false">
             <path d="M12 2L14.5 9.5L21 12L14.5 14L13.5 20L16 21.5V22.5L12 21.5L8 22.5V21.5L10.5 20L9.5 14L3 12L9.5 9.5L12 2Z" fill="currentColor" />
           </svg>
         </span>
-        <span class="aircraft-tag">${aircraft.callsign.replace(' [DEMO]', '')}</span>
+        <span class="aircraft-tag">${safeTag}</span>
       </button>
     `;
 
@@ -138,3 +147,13 @@ export class AegeanRadarMap {
     this.map.invalidateSize();
   }
 }
+
+function escapeHtml(raw: string): string {
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+

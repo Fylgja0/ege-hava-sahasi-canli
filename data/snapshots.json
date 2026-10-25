@@ -21,5 +21,12 @@
       "isDemo": false,
       "status": "ok"
     }
-  ]
+  ],
+  "lastAttempt": {
+    "timestamp": "2026-10-25T19:59:58.550Z",
+    "status": "error",
+    "httpStatus": null,
+    "errorType": "NETWORK_ERROR",
+    "message": "Ağ bağlantı hatası (ENOTFOUND). OpenSky sunucusuna erişilemedi."
+  }
 }

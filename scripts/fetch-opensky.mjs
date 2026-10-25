@@ -307,23 +307,20 @@ function createExplicitDemoData(nowIso, attemptInfo) {
     aircraft: demoAircraft
   };
 
-  // Saatlik grafik için açıkça isDemo: true olarak işaretlenmiş örnek zaman serisi
-  const snapshots = [];
-  for (let i = 11; i >= 0; i--) {
-    const t = new Date(Date.now() - i * 3600 * 1000);
-    const count = i === 0 ? demoAircraft.length : 5 + ((i * 3) % 8);
-    snapshots.push({
-      timestamp: t.toISOString(),
-      unixTime: Math.floor(t.getTime() / 1000),
-      aircraftCount: count,
-      airborneCount: Math.max(1, count - 1),
-      avgAltitudeM: 8400 + ((i * 250) % 2000),
-      avgVelocityKmh: 760 + ((i * 25) % 120),
+  // Geçmiş veri uydurmadan yalnızca tek bir açık DEMO kaydı oluştur
+  const snapshots = [
+    {
+      timestamp: nowIso,
+      unixTime: nowUnix,
+      aircraftCount: metrics.aircraftCount,
+      airborneCount: metrics.airborneCount,
+      avgAltitudeM: metrics.avgAltitudeM,
+      avgVelocityKmh: metrics.avgVelocityKmh,
       source: 'demo-fallback',
       isDemo: true,
       status: 'demo'
-    });
-  }
+    }
+  ];
 
   return {
     latestPayload,

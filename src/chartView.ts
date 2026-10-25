@@ -68,34 +68,62 @@ export class HourlyFlightsChart {
     const peakTime = formatFullDateTime(snapshots[maxIndex].timestamp);
     const latestEntry = snapshots[snapshots.length - 1];
     const isDemoSeries = snapshots.some((s) => s.isDemo);
+    const isSingleSnapshot = snapshots.length === 1;
 
-    summaryEl.textContent =
-      `Grafik Metinsel Özeti: Toplam ${snapshots.length} zaman damgalı ölçüm incelenmiştir. ` +
-      `Ege hava sahasında saatlik/anlık uçak sayısı en düşük ${minCount}, en yüksek ${maxCount} (${peakTime}) ` +
-      `ve ortalama ${avgCount} uçak olarak kaydedilmiştir. Son ölçümde (${formatFullDateTime(
-        latestEntry.timestamp
-      )}) toplam ${latestEntry.aircraftCount} uçak (${latestEntry.airborneCount} havada) yer almaktadır.` +
-      (isDemoSeries
-        ? ' Not: Bu zaman serisi açıkça DEMO olarak etiketlenmiş yedek kayıtları içermektedir.'
-        : '');
+    if (isSingleSnapshot) {
+      const singleAlt = latestEntry.avgAltitudeM
+        ? `${Number(latestEntry.avgAltitudeM).toLocaleString('tr-TR')} m`
+        : '0 m';
+      const singleSpd = latestEntry.avgVelocityKmh
+        ? `${Number(latestEntry.avgVelocityKmh).toLocaleString('tr-TR')} km/h`
+        : '0 km/h';
 
-    this.canvas.setAttribute(
-      'aria-label',
-      summaryEl.textContent
-    );
+      summaryEl.textContent =
+        `Grafik Metinsel Özeti (Tek Ölçüm): snapshots.json dosyasında henüz yalnızca 1 adet zaman damgalı ölçüm (${formatFullDateTime(
+          latestEntry.timestamp
+        )}) bulunmaktadır; geçmişe dönük yapay veri üretilmemiştir. ` +
+        `Bu tek ölçümde Ege hava sahasında toplam ${latestEntry.aircraftCount} uçak (${
+          latestEntry.airborneCount ?? latestEntry.aircraftCount
+        } havada), ortalama ${singleAlt} irtifa ve ortalama ${singleSpd} yer hızı kaydedilmiştir. ` +
+        `Yeni veri çekimleri eklendikçe saatlik zaman serisi eğrisi oluşacaktır.` +
+        (isDemoSeries
+          ? ' Not: Bu kayıt açıkça DEMO olarak etiketlenmiş yedek veridir, canlı ölçüm değildir.'
+          : '');
+    } else {
+      summaryEl.textContent =
+        `Grafik Metinsel Özeti: Toplam ${snapshots.length} zaman damgalı ölçüm incelenmiştir. ` +
+        `Ege hava sahasında saatlik/anlık uçak sayısı en düşük ${minCount}, en yüksek ${maxCount} (${peakTime}) ` +
+        `ve ortalama ${avgCount} uçak olarak kaydedilmiştir. Son ölçümde (${formatFullDateTime(
+          latestEntry.timestamp
+        )}) toplam ${latestEntry.aircraftCount} uçak (${latestEntry.airborneCount} havada) yer almaktadır.` +
+        (isDemoSeries
+          ? ' Not: Bu zaman serisi açıkça DEMO olarak etiketlenmiş yedek kayıtları içermektedir.'
+          : '');
+    }
+
+    this.canvas.setAttribute('aria-label', summaryEl.textContent);
 
     // Tablo alternatifini doldur (en yeniden en eskiye)
     const reversed = [...snapshots].reverse();
     tableBodyEl.innerHTML = reversed
       .map((s) => {
         const modeBadge = s.isDemo ? 'DEMO' : 'Canlı (OpenSky)';
+        const safeTime = escapeHtml(formatFullDateTime(s.timestamp));
+        const safeTotal = Number(s.aircraftCount);
+        const safeAirborne = Number(s.airborneCount ?? s.aircraftCount);
+        const safeAlt = s.avgAltitudeM
+          ? `${Number(s.avgAltitudeM).toLocaleString('tr-TR')} m`
+          : '-';
+        const safeSpeed = s.avgVelocityKmh
+          ? `${Number(s.avgVelocityKmh).toLocaleString('tr-TR')} km/h`
+          : '-';
         return `
           <tr>
-            <th scope="row">${formatFullDateTime(s.timestamp)}</th>
-            <td><strong>${s.aircraftCount}</strong></td>
-            <td>${s.airborneCount ?? s.aircraftCount}</td>
-            <td>${s.avgAltitudeM ? `${s.avgAltitudeM.toLocaleString('tr-TR')} m` : '-'}</td>
-            <td>${s.avgVelocityKmh ? `${s.avgVelocityKmh.toLocaleString('tr-TR')} km/s` : '-'} (${modeBadge})</td>
+            <th scope="row">${safeTime}</th>
+            <td><strong>${safeTotal}</strong></td>
+            <td>${safeAirborne}</td>
+            <td>${escapeHtml(safeAlt)}</td>
+            <td>${escapeHtml(safeSpeed)} (${escapeHtml(modeBadge)})</td>
           </tr>
         `;
       })
@@ -107,7 +135,9 @@ export class HourlyFlightsChart {
         labels,
         datasets: [
           {
-            label: 'Toplam Uçak Sayısı',
+            label: isSingleSnapshot
+              ? 'Toplam Uçak Sayısı (Tek Ölçüm Noktası)'
+              : 'Toplam Uçak Sayısı',
             data: totalCounts,
             borderColor: '#2dd4bf',
             backgroundColor: 'rgba(45, 212, 191, 0.16)',
@@ -115,20 +145,23 @@ export class HourlyFlightsChart {
             pointBackgroundColor: '#2dd4bf',
             pointBorderColor: '#060d14',
             pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            fill: true,
+            pointRadius: isSingleSnapshot ? 7 : 4,
+            pointHoverRadius: isSingleSnapshot ? 9 : 6,
+            fill: !isSingleSnapshot,
             tension: 0.25
           },
           {
-            label: 'Havadaki Uçak Sayısı',
+            label: isSingleSnapshot
+              ? 'Havadaki Uçak Sayısı (Tek Ölçüm Noktası)'
+              : 'Havadaki Uçak Sayısı',
             data: airborneCounts,
             borderColor: '#99f6e4',
             backgroundColor: 'transparent',
             borderWidth: 1.5,
             borderDash: [4, 4],
             pointBackgroundColor: '#99f6e4',
-            pointRadius: 3,
+            pointRadius: isSingleSnapshot ? 5 : 3,
+            pointHoverRadius: isSingleSnapshot ? 7 : 5,
             fill: false,
             tension: 0.25
           }
@@ -168,6 +201,11 @@ export class HourlyFlightsChart {
             },
             grid: {
               color: 'rgba(45, 212, 191, 0.08)'
+            },
+            title: {
+              display: isSingleSnapshot,
+              text: 'Tek Ölçüm Zaman Damgası (Yeni çekimlerle zaman serisi oluşur)',
+              color: '#a3c2bb'
             }
           },
           y: {
@@ -211,3 +249,13 @@ function formatFullDateTime(isoString: string): string {
     minute: '2-digit'
   });
 }
+
+function escapeHtml(raw: string): string {
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+

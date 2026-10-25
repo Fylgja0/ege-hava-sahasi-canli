@@ -17,11 +17,11 @@
   "avgAltitudeM": 8909,
   "avgVelocityKmh": 745,
   "lastAttempt": {
-    "timestamp": "2026-10-25T18:54:29.713Z",
-    "status": "ok",
-    "httpStatus": 200,
-    "errorType": null,
-    "message": "OpenSky API üzerinden canlı veri başarıyla alındı."
+    "timestamp": "2026-10-25T19:59:58.550Z",
+    "status": "error",
+    "httpStatus": null,
+    "errorType": "NETWORK_ERROR",
+    "message": "Ağ bağlantı hatası (ENOTFOUND). OpenSky sunucusuna erişilemedi."
   },
   "aircraft": [
     {

@@ -271,7 +271,7 @@ class DashboardController {
       if (countSubEl) countSubEl.textContent = 'Havada: 0 | Yerde: 0';
       if (altEl) altEl.textContent = '0 m';
       if (altSubEl) altSubEl.textContent = 'Aktif uçuş yok';
-      if (speedEl) speedEl.textContent = '0 km/s';
+      if (speedEl) speedEl.textContent = '0 km/h';
       if (speedSubEl) speedSubEl.textContent = 'Aktif uçuş yok';
       return;
     }
@@ -296,7 +296,7 @@ class DashboardController {
     }
 
     if (speedEl) {
-      speedEl.textContent = `${latest.avgVelocityKmh.toLocaleString('tr-TR')} km/s`;
+      speedEl.textContent = `${latest.avgVelocityKmh.toLocaleString('tr-TR')} km/h`;
     }
     if (speedSubEl) {
       speedSubEl.textContent = `Yaklaşık ${avgKnots.toLocaleString('tr-TR')} knot (${avgMs} m/s)`;
@@ -335,6 +335,9 @@ class DashboardController {
     tbody.innerHTML = filtered
       .map((aircraft) => {
         const isSelected = this.selectedAircraft?.icao24 === aircraft.icao24;
+        const safeIcao = escapeHtml(aircraft.icao24);
+        const safeCallsign = escapeHtml(aircraft.callsign);
+        const safeCountry = escapeHtml(aircraft.originCountry);
         const altM =
           aircraft.baroAltitudeM !== null
             ? `${aircraft.baroAltitudeM.toLocaleString('tr-TR')} m`
@@ -344,7 +347,7 @@ class DashboardController {
             ? `${Math.round(aircraft.baroAltitudeM * 3.28084).toLocaleString('tr-TR')} ft`
             : '-';
         const spdKmh =
-          aircraft.velocityKmh !== null ? `${aircraft.velocityKmh} km/s` : '0 km/s';
+          aircraft.velocityKmh !== null ? `${aircraft.velocityKmh} km/h` : '0 km/h';
         const spdKt =
           aircraft.velocityKnots !== null ? `${aircraft.velocityKnots} kt` : '0 kt';
         const statusText = aircraft.onGround ? 'Yerde' : 'Havada';
@@ -353,13 +356,13 @@ class DashboardController {
           <tr
             class="${isSelected ? 'is-selected-row' : ''}"
             aria-selected="${isSelected ? 'true' : 'false'}"
-            data-icao24="${aircraft.icao24}"
+            data-icao24="${safeIcao}"
           >
             <th scope="row">
-              <strong>${escapeHtml(aircraft.callsign)}</strong>
+              <strong>${safeCallsign}</strong>
             </th>
-            <td><code>${escapeHtml(aircraft.icao24)}</code></td>
-            <td>${escapeHtml(aircraft.originCountry)}</td>
+            <td><code>${safeIcao}</code></td>
+            <td>${safeCountry}</td>
             <td>${altM} <small>(${altFt})</small></td>
             <td>${spdKmh} <small>(${spdKt})</small></td>
             <td>${aircraft.trueTrackDeg.toFixed(1)}°</td>
@@ -373,8 +376,8 @@ class DashboardController {
               <button
                 type="button"
                 class="btn btn-secondary btn-sm select-aircraft-btn"
-                data-icao24="${aircraft.icao24}"
-                aria-label="${escapeHtml(aircraft.callsign)} uçağının irtifa ve hız detayını göster"
+                data-icao24="${safeIcao}"
+                aria-label="${safeCallsign} uçağının irtifa ve hız detayını göster"
               >
                 ${isSelected ? 'Seçili ✓' : 'Detay & Odakla'}
               </button>
@@ -440,7 +443,7 @@ class DashboardController {
     setText('detail-baro-alt', baroAltM);
     setText('detail-baro-ft', baroAltFt);
 
-    const spdKmh = a.velocityKmh !== null ? `${a.velocityKmh.toLocaleString('tr-TR')} km/s` : '0 km/s';
+    const spdKmh = a.velocityKmh !== null ? `${a.velocityKmh.toLocaleString('tr-TR')} km/h` : '0 km/h';
     const spdSub =
       a.velocityKnots !== null && a.velocityMs !== null
         ? `${a.velocityKnots} knot (${a.velocityMs} m/s)`
