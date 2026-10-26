@@ -23,7 +23,7 @@
 
 ## 1. Kurulum ve OAuth2 Kimlik Doğrulama Ayarları
 
-Yerel geliştirme, CI ve üretim derlemesi için önerilen çalışma ortamı **Node.js 24** (`.nvmrc` içinde `24` olarak tanımlıdır; yerel ortamda Node.js $\ge 22$ ile de uyumludur) ve **npm**'dir.
+Yerel geliştirme, CI ve üretim derlemesi için önerilen çalışma ortamı **Node.js 24** (`.nvmrc` içinde `24` olarak tanımlıdır; yerel ortamda Node.js `>=22.12.0` ile de uyumludur) ve **npm**'dir.
 
 ```bash
 # Depoyu klonlayın
