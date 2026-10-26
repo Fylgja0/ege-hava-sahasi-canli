@@ -55,51 +55,73 @@ jobs:
         if: always()
         run: |
           WORK_DIR=$(mktemp -d)
-          cp -r data "$WORK_DIR/data"
-          cp -r public "$WORK_DIR/public"
+          NEW_DIR="$WORK_DIR/new"
+          OLD_DIR="$WORK_DIR/old"
+          mkdir -p "$NEW_DIR/data" "$NEW_DIR/public/data" "$OLD_DIR"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp data/latest.json "$NEW_DIR/data/latest.json"
+          cp data/snapshots.json "$NEW_DIR/data/snapshots.json"
+          cp public/data/latest.json "$NEW_DIR/public/data/latest.json"
+          cp public/data/snapshots.json "$NEW_DIR/public/data/snapshots.json"
 
           if git show-ref --verify --quiet refs/remotes/origin/data; then
-            git checkout -B data refs/remotes/origin/data
+            git show refs/remotes/origin/data:data/latest.json > "$OLD_DIR/latest.json" 2>/dev/null || true
+            git show refs/remotes/origin/data:data/snapshots.json > "$OLD_DIR/snapshots.json" 2>/dev/null || true
+
+            # Çalışma ağacındaki dosyalar yerine doğrudan refs/remotes/origin/data referansından çıkarılan eski dosyalarla karşılaştır
+            SHOULD_UPDATE=$(node -e '
+              const fs = require("node:fs");
+              const readJson = (p) => {
+                try {
+                  const content = fs.readFileSync(p, "utf8");
+                  return content.trim() ? JSON.parse(content) : null;
+                } catch {
+                  return null;
+                }
+              };
+              const stripTransient = (obj) => {
+                if (!obj || typeof obj !== "object") return null;
+                const copy = JSON.parse(JSON.stringify(obj));
+                if (copy.lastAttempt && typeof copy.lastAttempt === "object") {
+                  delete copy.lastAttempt.timestamp;
+                  delete copy.lastAttempt.message;
+                }
+                return JSON.stringify(copy);
+              };
+              const oldDir = process.argv[1];
+              const newDir = process.argv[2];
+              const oldLatest = stripTransient(readJson(oldDir + "/latest.json"));
+              const newLatest = stripTransient(readJson(newDir + "/data/latest.json"));
+              const oldSnaps = stripTransient(readJson(oldDir + "/snapshots.json"));
+              const newSnaps = stripTransient(readJson(newDir + "/data/snapshots.json"));
+              if (!oldLatest || !oldSnaps || oldLatest !== newLatest || oldSnaps !== newSnaps) {
+                process.stdout.write("true");
+              } else {
+                process.stdout.write("false");
+              }
+            ' "$OLD_DIR" "$NEW_DIR")
           else
-            git checkout --orphan data
-            git rm -rf . || true
+            SHOULD_UPDATE="true"
           fi
 
-          # Tekrarlayan hata durumlarında yalnızca lastAttempt.timestamp değiştiyse her 30 dakikada bir gereksiz commit üretme
-          SHOULD_UPDATE=$(node -e '
-            const fs = require("node:fs");
-            const readJson = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; } };
-            const stripTransient = (obj) => {
-              if (!obj || typeof obj !== "object") return null;
-              const copy = JSON.parse(JSON.stringify(obj));
-              if (copy.lastAttempt) {
-                delete copy.lastAttempt.timestamp;
-                delete copy.lastAttempt.message;
-              }
-              return JSON.stringify(copy);
-            };
-            const oldLatest = stripTransient(readJson("data/latest.json"));
-            const newLatest = stripTransient(readJson(process.argv[1] + "/data/latest.json"));
-            const oldSnaps = stripTransient(readJson("data/snapshots.json"));
-            const newSnaps = stripTransient(readJson(process.argv[1] + "/data/snapshots.json"));
-            if (!oldLatest || !oldSnaps || oldLatest !== newLatest || oldSnaps !== newSnaps) {
-              process.stdout.write("true");
-            } else {
-              process.stdout.write("false");
-            }
-          ' "$WORK_DIR")
-
           if [ "$SHOULD_UPDATE" = "false" ]; then
-            echo "Son başarılı veri, snapshot geçmişi ve hata türü değişmedi (yalnızca deneme zaman damgası güncellendi); gereksiz commit atlanıyor."
+            echo "Son başarılı veri, snapshot geçmişi ve hata türü değişmedi (yalnızca deneme zaman damgası/mesajı güncellendi); gereksiz commit atlanıyor."
           else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            if git show-ref --verify --quiet refs/remotes/origin/data; then
+              git checkout -f -B data refs/remotes/origin/data
+            else
+              git checkout --orphan data
+              git rm -rf . || true
+            fi
+
             mkdir -p data public/data
-            cp "$WORK_DIR/data/latest.json" data/latest.json
-            cp "$WORK_DIR/data/snapshots.json" data/snapshots.json
-            cp "$WORK_DIR/public/data/latest.json" public/data/latest.json
-            cp "$WORK_DIR/public/data/snapshots.json" public/data/snapshots.json
+            cp "$NEW_DIR/data/latest.json" data/latest.json
+            cp "$NEW_DIR/data/snapshots.json" data/snapshots.json
+            cp "$NEW_DIR/public/data/latest.json" public/data/latest.json
+            cp "$NEW_DIR/public/data/snapshots.json" public/data/snapshots.json
 
             git add data/latest.json data/snapshots.json public/data/latest.json public/data/snapshots.json
             if git diff --cached --quiet; then
