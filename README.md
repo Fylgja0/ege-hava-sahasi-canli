@@ -1,35 +1,39 @@
 # Ege Hava Sahası Canlı
 
 **Manisa Celal Bayar Üniversitesi — Büyük Veri Analistliği Programı**  
-*(İlk Ara Kontrol Temel Sürümü — Bulut Bilişim ve Siber Güvenlik Entegrasyonuna Hazır Altyapı)*
+*(İlk Ara Kontrol ve Canlıya Çıkış Hazırlık Sürümü — Bulut Bilişim ve Siber Güvenlik Entegrasyonuna Hazır Altyapı)*
 
-**Ege Hava Sahası Canlı**, Ege Denizi ve çevresindeki sivil hava trafiğini (`36.5°K–40.5°K`, `24.5°D–30.5°D`) **OpenSky Network** verileri üzerinden toplayan, normalleştiren ve koyu radar estetiğinde erişilebilir (WCAG AA uyumlu) bir web arayüzünde görselleştiren bir gözlem ve analiz uygulamasıdır.
+**Ege Hava Sahası Canlı**, Ege Denizi ve çevresindeki sivil hava trafiğini (`36.5°K–40.5°K`, `24.5°D–30.5°D`) **OpenSky Network** verileri üzerinden toplayan, normalleştiren ve koyu radar estetiğinde erişilebilirlik ilkelerini (WCAG AA kontrast ve klavye erişimi hedeflerini) gözeterek bir web arayüzünde görselleştiren bir gözlem ve analiz uygulamasıdır.
 
 ---
 
 ## İçindekiler
 
 1. [Kurulum ve OAuth2 Kimlik Doğrulama Ayarları](#1-kurulum-ve-oauth2-kimlik-doğrulama-ayarları)
-2. [Çalıştırma](#2-çalıştırma)
+2. [Çalıştırma, Test ve Güvenlik Denetimi Komutları](#2-çalıştırma-test-ve-güvenlik-denetimi-komutları)
 3. [Veri Kaynağı, Sınır Kutusu ve Saklama Süresi](#3-veri-kaynağı-sınır-kutusu-ve-saklama-süresi)
-4. [Basit Mimari Şeması ve `data` Dalı Stratejisi](#4-basit-mimari-şeması-ve-data-dalı-stratejisi)
-5. [Arayüz Özellikleri ve Erişilebilirlik](#5-arayüz-özellikleri-ve-erişilebilirlik)
-6. [Harita ve Veri Atıfları (OpenStreetMap & OpenSky)](#6-harita-ve-veri-atıfları-openstreetmap--opensky)
-7. [Lisans](#7-lisans)
-8. [Yapay Zekâ Kullanım Beyanı](#8-yapay-zekâ-kullanım-beyanı)
+4. [Basit Mimari Şeması, `data` Dalı Stratejisi ve Canlı Yenileme](#4-basit-mimari-şeması-data-dalı-stratejisi-ve-canlı-yenileme)
+5. [Cloudflare Pages Dağıtımı ve Güvenlik Başlıkları (CSP)](#5-cloudflare-pages-dağıtımı-ve-güvenlik-başlıkları-csp)
+6. [Arayüz Özellikleri ve Erişilebilirlik](#6-arayüz-özellikleri-ve-erişilebilirlik)
+7. [Harita ve Veri Atıfları (OpenStreetMap & OpenSky)](#7-harita-ve-veri-atıfları-openstreetmap--opensky)
+8. [Lisans](#8-lisans)
+9. [Yapay Zekâ Kullanım Beyanı](#9-yapay-zekâ-kullanım-beyanı)
 
 ---
 
 ## 1. Kurulum ve OAuth2 Kimlik Doğrulama Ayarları
 
-Projeyi yerel ortamınızda kurmak için **Node.js (v20 veya v22+)** ve **npm** gereklidir.
+Yerel geliştirme, CI ve üretim derlemesi için önerilen çalışma ortamı **Node.js 24** (`.nvmrc` içinde `24` olarak tanımlıdır; yerel ortamda Node.js $\ge 22$ ile de uyumludur) ve **npm**'dir.
 
 ```bash
 # Depoyu klonlayın
 git clone https://github.com/Fylgja0/ege-hava-sahasi-canli.git
 cd ege-hava-sahasi-canli
 
-# Bağımlılıkları yükleyin
+# (İsteğe bağlı) nvm kullanıyorsanız Node.js 24 sürümüne geçin
+nvm use
+
+# Bağımlılıkları kilit dosyasına sadık kalarak kurun
 npm ci
 ```
 
@@ -54,21 +58,32 @@ GitHub Actions paylaşımlı IP adreslerinde anonim istek limitine (`HTTP 429`) 
 
 ---
 
-## 2. Çalıştırma
+## 2. Çalıştırma, Test ve Güvenlik Denetimi Komutları
 
 ```bash
-# 1. OpenSky API'den Ege hava sahası verisini çekin ve normalleştirin
+# 1. Birim ve entegrasyon testlerini çalıştırın (Canlı API veya gizli anahtar gerektirmez)
+npm test
+
+# 2. Yüksek ve kritik bağımlılık güvenlik açıklarını denetleyin
+npm audit --audit-level=high
+
+# 3. OpenSky API'den Ege hava sahası verisini çekin ve normalleştirin
 npm run data:fetch
 
-# 2. Geliştirme sunucusunu başlatın (http://localhost:5173)
+# 4. Geliştirme sunucusunu başlatın (http://localhost:5173 - yerel ./data dosyalarını okur)
 npm run dev
 
-# 3. Tip kontrolü ve üretim (production) derlemesi alın
+# 5. Tip kontrolü ve üretim (production) derlemesi alın (dist/ klasörünü üretir)
 npm run build
 
-# 4. Üretim derlemesini yerel olarak önizleyin
+# 6. Üretim derlemesini yerel olarak önizleyin
 npm run preview
 ```
+
+### Otomatik CI İş Akışı (`.github/workflows/ci.yml`)
+- `main` dalına yapılan her `push` ve `main` hedefli her `pull_request` olayında otomatik çalışır.
+- En az ayrıcalık ilkesiyle (`permissions: contents: read`) ve tam commit SHA ile sabitlenmiş `actions/checkout` (`v7.0.1`) ve `actions/setup-node` (`v7.1.0`, Node.js 24, `package-manager-cache: false`) adımlarını kullanır.
+- Sırasıyla `npm ci`, `npm test`, `npm audit --audit-level=high` ve `npm run build` adımlarını gerçek OpenSky API'sine istek göndermeden ve hiçbir gizli anahtara (`secret`) ihtiyaç duymadan doğrular.
 
 ---
 
@@ -99,7 +114,7 @@ Uygulama, tarayıcıdan doğrudan dış API çağrısı **yapmaz**. Veriler `scr
 
 ---
 
-## 4. Basit Mimari Şeması ve `data` Dalı Stratejisi
+## 4. Basit Mimari Şeması, `data` Dalı Stratejisi ve Canlı Yenileme
 
 Sürüm kodunun bulunduğu korunan `main` dalının otomatik veri commit'leriyle kirlenmesini önlemek amacıyla **kod ve veri dalları birbirinden ayrılmıştır**:
 
@@ -107,38 +122,69 @@ Sürüm kodunun bulunduğu korunan `main` dalının otomatik veri commit'leriyle
 flowchart LR
     A["OpenSky Network API\n/api/states/all\n(OAuth2 Bearer / Anonim)"] -->|1. HTTP GET| B["scripts/fetch-opensky.mjs\n(GitHub Actions / Yerel CLI)"]
     B -->|2. Normalleştirme & Hata Koruma| C["latest.json & snapshots.json\n(MAX_SNAPSHOTS = 336)"]
-    C -->|3a. Otomatik Push| D[("GitHub: data Dalı\n(Yalnızca Veri Dosyaları)")]
-    C -->|3b. Yerel Dosya| E[("public/data/\n(Yerel Geliştirme)")]
-    D -->|4. HTTPS Raw Fetch| F["Vite + TypeScript Arayüzü\n(main Dalından Derlenen İstemci)"]
-    E -->|4. Yerel Okuma| F
+    C -->|3a. scripts/compare-data.mjs| D[("GitHub: data Dalı\n(Yalnızca Veri Dosyaları)")]
+    C -->|3b. Yerel Dosya| E[("public/data/\n(Yerel Geliştirme / Yedek)")]
+    D -->|4. HTTPS Raw Fetch\n(5 dk Otomatik Yenileme)| F["Vite + TypeScript Arayüzü\n(Cloudflare / GitHub Pages)"]
+    E -->|4. Yerel / Yedek Okuma| F
     F --> G["3 KPI Kartı + Leaflet Radar Haritası\n+ Uçak Detay Paneli + Chart.js + Erişilebilir Tablo"]
 ```
 
-### Arayüzün `data` Dalındaki Veriyi Okuma Yöntemi ve İş Akışı Davranışı
+### Arayüzün `data` Dalındaki Veriyi Okuma ve Yenileme Yöntemi
 1. **Otomatik Veri Toplama (`.github/workflows/fetch-opensky.yml`):**
    - Her 30 dakikada bir (`cron: '*/30 * * * *'`) veya GitHub Actions sekmesinden **manuel (`workflow_dispatch`)** olarak tetiklenir.
-   - Uygulama kodunu `main` dalından alır; uzak depoda `origin/data` dalı mevcutsa geçmiş `latest.json` ve `snapshots.json` dosyalarını geri yükler, henüz `data` dalı yoksa ilk çalışmada `data` dalını otomatik olarak oluşturur.
-   - `npm run data:fetch` çalıştıktan sonra (çekim başarısız olsa bile) yayınlama adımı çalışır. Ancak tekrarlayan API kesintilerinde her 30 dakikada bir yalnızca `lastAttempt.timestamp` değiştiği için gereksiz commit üretilmesini önlemek adına, son başarılı veri (`fetchedAt`), snapshot geçmişi ve hata türü (`errorType`) değişmemişse yeni commit atılmaz.
-   - Yayınlama adımı tamamlandıktan sonra, eğer `npm run data:fetch` hata döndürmüşse son adım işi (`job`) **başarısız (`failed`)** olarak işaretler.
-2. **İstemci (Tarayıcı) Veri Okuma (`src/dataService.ts`):**
-   - İstemci, `VITE_DATA_BASE_URL` ortam değişkeni tanımlıysa veya GitHub Pages (`*.github.io`) üzerinde çalışıyorsa doğrudan `data` dalındaki ham JSON adresinden (`https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data/latest.json` ve `snapshots.json`) veriyi okur.
-   - Yerel geliştirmede (`npm run dev` / `npm run preview`) veya uzak dala henüz erişilemediğinde otomatik olarak yerel `./data/latest.json` ve `./data/snapshots.json` dosyalarını okur.
+   - `scripts/compare-data.mjs` yardımcısını kullanarak `refs/remotes/origin/data` dalındaki önceki dosyalarla yeni üretilen dosyaları karşılaştırır. Tekrarlayan API kesintilerinde yalnızca `lastAttempt.timestamp` / `lastAttempt.message` değişmişse her 30 dakikada bir gereksiz commit üretmez; gerçek veri (`fetchedAt`, `snapshots`) veya hata türü (`errorType`) değiştiğinde `data` dalını günceller.
+2. **İstemci Veri Kaynağı Önceliği (`src/dataService.ts`):**
+   - `VITE_DATA_BASE_URL` ortam değişkeni tanımlıysa önce bu adresi kullanır.
+   - Tanımlı değilse üretim derlemesinde (`import.meta.env.PROD`) ve GitHub Pages üzerinde varsayılan olarak `https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data` adresinden `latest.json` ve `snapshots.json` dosyalarını okur.
+   - Yerel geliştirmede (`npm run dev`) doğrudan yerel `./data` dosyalarını okur.
+   - Üretim ortamında uzak veri okunamazsa yerel paket yedeğine (`./data`) düşer; ancak bu durumda veriyi asla yeni/canlı gibi işaretlemez, `isStale = true` ve `Eski Veri (Yerel Yedek)` uyarısını aktif eder.
+3. **Canlı Arayüz Otomatik Yenileme (`src/main.ts`):**
+   - Arayüz açıkken her **5 dakikada bir** yayımlanmış JSON dosyalarını otomatik olarak yeniden okur.
+   - Sekme arka plandayken (`document.visibilityState === 'hidden'`) gereksiz ağ isteği yapmaz; sekme tekrar görünür olduğunda (`visible`) veriyi yeniler.
+   - Eşzamanlı yenileme isteklerini (`isRefreshing` kilidi ile) engeller. Arka plan yenilemesi başarısız olursa mevcut harita ve tablo verilerini silmeden korur ve kullanıcıya yenileme hatası bildirimi gösterir.
 
 ---
 
-## 5. Arayüz Özellikleri ve Erişilebilirlik
+## 5. Cloudflare Pages Dağıtımı ve Güvenlik Başlıkları (CSP)
+
+Uygulama Cloudflare Pages üzerinde statik site olarak yayınlanmaya hazırdır:
+
+| Ayar | Değer |
+| :--- | :--- |
+| **Framework preset** | `Vite` (veya `None`) |
+| **Build command** | `npm run build` |
+| **Build output directory** | `dist` |
+| **Node.js sürümü** | `24` (`NODE_VERSION = 24` veya `.nvmrc` üzerinden otomatik) |
+| **`VITE_DATA_BASE_URL`** *(İsteğe bağlı)* | `https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data` *(Boş bırakılsa da üretim derlemesinde varsayılan olarak bu adres kullanılır)* |
+
+### Güvenlik Başlıkları (`public/_headers` → `dist/_headers`)
+Vite derlemesi sırasında `public/_headers` dosyası otomatik olarak `dist/_headers` konumuna kopyalanır ve aşağıdaki başlıkları uygular:
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `X-Frame-Options: DENY`
+- `Permissions-Policy: geolocation=(), camera=(), microphone=()`
+- `Content-Security-Policy`:
+  ```text
+  default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://raw.githubusercontent.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+  ```
+  > **Neden `style-src` içinde `'unsafe-inline'` kullanılıyor?**
+  > **Leaflet** harita kütüphanesi, harita karolarının konumlandırılması (`transform: translate3d(...)`) ve uçak işaretçilerinin yön açısına (`transform: rotate(...)`) göre döndürülmesi için DOM öğelerine çalışma zamanında satır içi (inline) CSS stilleri uygular. Bu nedenle `style-src` için `'unsafe-inline'` gereklidir. Buna karşın **`script-src` tamamen `'self'` ile sınırlandırılmıştır**; `unsafe-inline` veya `unsafe-eval` içermez.
+
+---
+
+## 6. Arayüz Özellikleri ve Erişilebilirlik
 
 - **3 KPI Kartı:** Aktif uçak sayısı (havada/yerde), ortalama barometrik irtifa (`m` / `ft`) ve ortalama yer hızı (`km/h` / `knot` / `m/s`).
 - **İnteraktif Ege Radar Haritası (Leaflet):** Sınır kutusu çerçevesi, uçuş yönüne göre dönen uçak simgeleri ve seçim vurgusu.
 - **Seçili Uçak Detay Paneli:** Haritadan veya tablodan bir uçak seçildiğinde barometrik/jeodezik irtifa, yer hızı (`km/h`, `knot`, `m/s`), dikey hız (`m/s`), baş açısı, ülke ve son temas zamanını gösterir.
 - **Saatlere Göre Uçuş Sayısı Grafiği (Chart.js):** `snapshots.json` üzerinden zaman serisi grafiği, ekran okuyucular için dinamik **metinsel özet** (tek ölçüm olduğunda uydurma geçmiş üretmeden yalnızca 1 ölçüm bulunduğunu açıkça belirten özet) ve **erişilebilir veri tablosu alternatifi** (`<table>`).
 - **Erişilebilir Uçak Listesi/Tablosu:** Harita üzerindeki tüm uçakları arama/filtreleme desteği ve klavye ile odaklanabilir *"Detay & Odakla"* düğmeleriyle sunar.
-- **Ayrı Durum Gösterimleri:** `Yükleniyor`, `Boş Sonuç`, `Hata (HTTP 429 / Zaman Aşımı / Ağ Hatası)`, `Eski Veri (>30 dk)` ve `Demo Verisi` durumları ayrı bildirim bantlarıyla gösterilir ve üst araç çubuğundan test edilebilir.
-- **Duyarlı ve Erişilebilir Tasarım:** Koyu radar estetiği, tek vurgu rengi (`#2dd4bf`), WCAG AA kontrast uyumu, görünür `:focus-visible` klavye odağı, `360px` mobil ve `1440px` masaüstü ekran desteği.
+- **Ayrı Durum Gösterimleri:** `Yükleniyor`, `Boş Sonuç`, `Hata (HTTP 429 / Zaman Aşımı / Ağ Hatası / Yenileme Hatası)`, `Eski Veri (>30 dk veya Yerel Yedek)` ve `Demo Verisi` durumları ayrı bildirim bantlarıyla gösterilir.
+- **Erişilebilirlik Hedefi ve Yapılan Kontroller:** Arayüz tasarımında **WCAG 2.1 AA** kontrast oranları (koyu radar zemini `#060d14` / `#0b1622` üzerinde `#eef7f5` birincil metin ve `#2dd4bf` vurgu rengi), semantik bölgeler (`<header>`, `<main>`, `<section>`, `<footer>`), klavye ile içeriğe atlama bağlantısı (`.skip-link`), görünür `:focus-visible` odak halkaları ve grafik/harita için metinsel özet + veri tablosu alternatifleri uygulanmıştır. *(Not: Bağımsız bir resmi erişilebilirlik sertifikasyon denetimi gerçekleştirilmemiştir; bu özellikler hedeflenen WCAG AA tasarım ve geliştirme kontrollerini temsil eder.)*
 
 ---
 
-## 6. Harita ve Veri Atıfları (OpenStreetMap & OpenSky)
+## 7. Harita ve Veri Atıfları (OpenStreetMap & OpenSky)
 
 - **Harita Katmanı (Zorunlu Atıf):** Harita karoları **OpenStreetMap** tarafından sağlanmaktadır.  
   © [OpenStreetMap](https://www.openstreetmap.org/copyright) katkıda bulunanları (ODbL lisansı altında sunulmaktadır).
@@ -147,12 +193,12 @@ flowchart LR
 
 ---
 
-## 7. Lisans
+## 8. Lisans
 
 Bu proje **MIT Lisansı** altında lisanslanmıştır. Ayrıntılar için `LICENSE` dosyasına bakınız. Harita verileri OpenStreetMap ODbL lisansına, uçuş verileri ise OpenSky Network kullanım koşullarına tabidir.
 
 ---
 
-## 8. Yapay Zekâ Kullanım Beyanı
+## 9. Yapay Zekâ Kullanım Beyanı
 
-Bu projenin ilk ara kontrol temel sürümünün geliştirilmesinde (proje iskeletinin oluşturulması, `scripts/fetch-opensky.mjs` veri normalleştirme, OAuth2 kimlik doğrulama ve hata koruma mantığının yazılması, Leaflet harita ve Chart.js grafik bileşenlerinin erişilebilir tablo alternatifleriyle yapılandırılması ve GitHub Actions `data` dalı iş akışının tasarlanması) yapay zekâ destekli kodlama asistanından yararlanılmıştır. Üretilen tüm kodlar, tip tanımları ve derleme çıktıları yerel terminal testleriyle (`npm ci`, `npm run data:fetch`, `npm run build`) doğrulanmıştır.
+Bu projenin geliştirilmesinde ve canlıya çıkış öncesi teknik bakımında (`scripts/fetch-opensky.mjs` OAuth2 kimlik doğrulama ve hata koruma mantığı, `scripts/compare-data.mjs` veri karşılaştırma yardımcısı, `tests/` altındaki otomatik birim/entegrasyon testleri, Leaflet/Chart.js arayüz bileşenleri, otomatik arka plan yenilemesi, Cloudflare Pages CSP/`_headers` yapılandırması ve GitHub Actions iş akışları) yapay zekâ destekli kodlama asistanından yararlanılmıştır. Üretilen tüm kodlar, tip tanımları, güvenlik denetimleri ve derleme çıktıları yerel terminal testleriyle (`npm ci`, `npm test`, `npm audit`, `npm run build`) doğrulanmıştır.

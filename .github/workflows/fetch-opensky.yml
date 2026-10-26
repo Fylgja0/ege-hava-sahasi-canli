@@ -22,15 +22,17 @@ jobs:
 
     steps:
       - name: Uygulama kodunu main dalından al
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           fetch-depth: 1
+          persist-credentials: true
 
       - name: Node.js ortamını hazırla
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Varsa mevcut data dalındaki son başarılı verileri geri yükle
         run: |
@@ -69,37 +71,7 @@ jobs:
             git show refs/remotes/origin/data:data/snapshots.json > "$OLD_DIR/snapshots.json" 2>/dev/null || true
 
             # Çalışma ağacındaki dosyalar yerine doğrudan refs/remotes/origin/data referansından çıkarılan eski dosyalarla karşılaştır
-            SHOULD_UPDATE=$(node -e '
-              const fs = require("node:fs");
-              const readJson = (p) => {
-                try {
-                  const content = fs.readFileSync(p, "utf8");
-                  return content.trim() ? JSON.parse(content) : null;
-                } catch {
-                  return null;
-                }
-              };
-              const stripTransient = (obj) => {
-                if (!obj || typeof obj !== "object") return null;
-                const copy = JSON.parse(JSON.stringify(obj));
-                if (copy.lastAttempt && typeof copy.lastAttempt === "object") {
-                  delete copy.lastAttempt.timestamp;
-                  delete copy.lastAttempt.message;
-                }
-                return JSON.stringify(copy);
-              };
-              const oldDir = process.argv[1];
-              const newDir = process.argv[2];
-              const oldLatest = stripTransient(readJson(oldDir + "/latest.json"));
-              const newLatest = stripTransient(readJson(newDir + "/data/latest.json"));
-              const oldSnaps = stripTransient(readJson(oldDir + "/snapshots.json"));
-              const newSnaps = stripTransient(readJson(newDir + "/data/snapshots.json"));
-              if (!oldLatest || !oldSnaps || oldLatest !== newLatest || oldSnaps !== newSnaps) {
-                process.stdout.write("true");
-              } else {
-                process.stdout.write("false");
-              }
-            ' "$OLD_DIR" "$NEW_DIR")
+            SHOULD_UPDATE=$(node scripts/compare-data.mjs "$OLD_DIR" "$NEW_DIR")
           else
             SHOULD_UPDATE="true"
           fi

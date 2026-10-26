@@ -1,8 +1,14 @@
 import './style.css';
-import { loadDashboardData, type LoadedDashboardData } from './dataService';
+import {
+  loadDashboardData,
+  STALE_THRESHOLD_MINUTES,
+  type LoadedDashboardData
+} from './dataService';
 import { AegeanRadarMap } from './mapView';
 import { HourlyFlightsChart } from './chartView';
 import type { AircraftState, UiStateMode } from './types';
+
+const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 dakikada bir otomatik yenileme
 
 class DashboardController {
   private mapView: AegeanRadarMap;
@@ -12,6 +18,9 @@ class DashboardController {
   private uiMode: UiStateMode = 'auto';
   private searchQuery = '';
   private statusFilter: 'all' | 'airborne' | 'ground' = 'all';
+  private isRefreshing = false;
+  private refreshErrorMessage: string | null = null;
+  private autoRefreshTimerId: number | null = null;
 
   constructor() {
     this.mapView = new AegeanRadarMap('aegean-map', (aircraft) => {
@@ -20,13 +29,14 @@ class DashboardController {
     this.chartView = new HourlyFlightsChart('hourly-flights-chart');
 
     this.bindEvents();
-    void this.refreshData();
+    this.startAutoRefreshLifecycle();
+    void this.refreshData({ isBackground: false });
   }
 
   private bindEvents(): void {
     const refreshBtn = document.getElementById('refresh-btn');
     refreshBtn?.addEventListener('click', () => {
-      void this.refreshData();
+      void this.refreshData({ isBackground: false });
     });
 
     const resetMapBtn = document.getElementById('reset-map-btn');
@@ -67,14 +77,51 @@ class DashboardController {
     });
   }
 
-  public async refreshData(): Promise<void> {
-    this.setLoadingBanner(true);
+  /**
+   * 5 dakikada bir yayımlanmış JSON dosyalarını yeniden okur.
+   * Sekme gizliyken (arka planda) gereksiz ağ isteği yapmaz; sekme tekrar görünür olduğunda yeniler.
+   */
+  private startAutoRefreshLifecycle(): void {
+    if (this.autoRefreshTimerId !== null) {
+      window.clearInterval(this.autoRefreshTimerId);
+    }
+
+    this.autoRefreshTimerId = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') {
+        return;
+      }
+      void this.refreshData({ isBackground: true });
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        void this.refreshData({ isBackground: true });
+      }
+    });
+  }
+
+  public async refreshData(options: { isBackground?: boolean } = {}): Promise<void> {
+    // Aynı anda birden fazla yenileme çalışmasını engelle
+    if (this.isRefreshing) {
+      return;
+    }
+
+    this.isRefreshing = true;
+    const isInitialLoad = this.loadedData === null;
+    const showLoadingSpinner = !options.isBackground || isInitialLoad;
+
+    this.setRefreshButtonState(true);
+    if (showLoadingSpinner) {
+      this.setLoadingBanner(true);
+    }
+
     try {
       const data = await loadDashboardData();
       this.loadedData = data;
+      this.refreshErrorMessage = null;
       this.mapView.drawBoundingBox(data.latest.bbox);
 
-      // Seçili uçak hala listedeyse referansını güncelle, yoksa ilk uçağı seçme (kullanıcı seçsin)
+      // Seçili uçak hala listedeyse referansını güncelle
       if (this.selectedAircraft) {
         const updated =
           data.latest.aircraft.find((a) => a.icao24 === this.selectedAircraft?.icao24) ?? null;
@@ -85,8 +132,40 @@ class DashboardController {
       this.renderAll();
     } catch (err) {
       this.setLoadingBanner(false);
-      this.showFatalLoadError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+
+      if (this.loadedData) {
+        // Arka plan veya el ile yenileme başarısız olduğunda önceki başarılı harita ve tablo verilerini SİLME
+        this.refreshErrorMessage = message;
+        this.recalculateLoadedDataAge();
+        this.renderStatusBanners();
+        this.renderHeaderMeta();
+      } else {
+        // İlk açılıştaki yükleme hatasını mevcut hata ekranıyla yönet
+        this.showFatalLoadError(message);
+      }
+    } finally {
+      this.isRefreshing = false;
+      this.setRefreshButtonState(false);
     }
+  }
+
+  private recalculateLoadedDataAge(): void {
+    if (!this.loadedData) return;
+    const fetchedTimeMs = new Date(this.loadedData.latest.fetchedAt).getTime();
+    const ageMs = Math.max(0, Date.now() - (Number.isNaN(fetchedTimeMs) ? 0 : fetchedTimeMs));
+    const dataAgeMinutes = Math.round(ageMs / 60000);
+    this.loadedData.dataAgeMinutes = dataAgeMinutes;
+    this.loadedData.isStale =
+      dataAgeMinutes > STALE_THRESHOLD_MINUTES || this.loadedData.usedFallbackAfterRemoteError;
+  }
+
+  private setRefreshButtonState(busy: boolean): void {
+    const refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement | null;
+    if (!refreshBtn) return;
+    refreshBtn.disabled = busy;
+    refreshBtn.setAttribute('aria-busy', busy ? 'true' : 'false');
+    refreshBtn.textContent = busy ? 'Yenileniyor...' : 'Veriyi Yenile';
   }
 
   private setLoadingBanner(isLoading: boolean): void {
@@ -149,7 +228,13 @@ class DashboardController {
 
   private renderStatusBanners(): void {
     if (!this.loadedData) return;
-    const { latest, isStale, dataAgeMinutes } = this.loadedData;
+    const {
+      latest,
+      isStale,
+      dataAgeMinutes,
+      usedFallbackAfterRemoteError,
+      remoteFallbackReason
+    } = this.loadedData;
 
     const loadingEl = document.getElementById('state-loading');
     const demoEl = document.getElementById('state-demo');
@@ -161,7 +246,7 @@ class DashboardController {
     const staleTextEl = document.getElementById('stale-banner-text');
     const emptyEl = document.getElementById('state-empty');
 
-    if (loadingEl) loadingEl.hidden = this.uiMode !== 'loading';
+    if (loadingEl) loadingEl.hidden = this.uiMode !== 'loading' && !this.isRefreshing;
 
     // Demo durumu: Gerçek veri alınamadığında sahte veriyi asla canlıymış gibi göstermez
     if (demoEl) {
@@ -173,38 +258,52 @@ class DashboardController {
       }
     }
 
-    // Hata durumu (Son deneme başarısızsa veya kullanıcı 'error' önizlemesini seçtiyse)
-    const hasAttemptError = latest.lastAttempt && latest.lastAttempt.status === 'error';
-    const showError = this.uiMode === 'error' || (this.uiMode === 'auto' && hasAttemptError);
+    // Hata durumu (Son deneme başarısızsa, arka plan yenilemesi hata verdiyse veya 'error' önizlemesi seçildiyse)
+    const hasAttemptError = Boolean(latest.lastAttempt && latest.lastAttempt.status === 'error');
+    const hasRefreshError = Boolean(this.refreshErrorMessage);
+    const showError =
+      this.uiMode === 'error' ||
+      (this.uiMode === 'auto' && (hasAttemptError || hasRefreshError));
+
     if (errorEl) {
       errorEl.hidden = !showError;
       if (showError && errorTypeEl && errorTextEl) {
-        const errCode =
-          this.uiMode === 'error' && !hasAttemptError
-            ? 'HTTP_429 / TIMEOUT (ÖNİZLEME)'
-            : latest.lastAttempt.errorType || 'API_HATASI';
-        const errMsg =
-          this.uiMode === 'error' && !hasAttemptError
-            ? 'OpenSky API istek limiti (HTTP 429) veya zaman aşımı oluştu. Son başarılı veri silinmeden korunmaktadır.'
-            : `${latest.lastAttempt.message} (${
-                latest.isDemo
-                  ? 'Canlı veri bulunmadığından açıkça etiketlenmiş DEMO verisi yüklendi.'
-                  : 'Son başarılı uçuş verisi silinmeden korundu.'
-              })`;
-        errorTypeEl.textContent = errCode;
-        errorTextEl.textContent = errMsg;
+        if (hasRefreshError) {
+          errorTypeEl.textContent = 'YENİLEME_HATASI';
+          errorTextEl.textContent = `Yeni veri dosyaları okunamadı (${this.refreshErrorMessage}). Önceki başarılı harita ve tablo verileri silinmeden korunmaktadır.`;
+        } else {
+          const errCode =
+            this.uiMode === 'error' && !hasAttemptError
+              ? 'HTTP_429 / TIMEOUT (ÖNİZLEME)'
+              : latest.lastAttempt.errorType || 'API_HATASI';
+          const errMsg =
+            this.uiMode === 'error' && !hasAttemptError
+              ? 'OpenSky API istek limiti (HTTP 429) veya zaman aşımı oluştu. Son başarılı veri silinmeden korunmaktadır.'
+              : `${latest.lastAttempt.message} (${
+                  latest.isDemo
+                    ? 'Canlı veri bulunmadığından açıkça etiketlenmiş DEMO verisi yüklendi.'
+                    : 'Son başarılı uçuş verisi silinmeden korundu.'
+                })`;
+          errorTypeEl.textContent = errCode;
+          errorTextEl.textContent = errMsg;
+        }
       }
     }
 
-    // Eski veri durumu
+    // Eski veri durumu (veya uzak dal okunamayıp yerel yedeğe düşülmesi)
     const showStale = this.uiMode === 'stale' || (this.uiMode === 'auto' && isStale);
     if (staleEl) {
       staleEl.hidden = !showStale;
       if (showStale && staleTextEl) {
         const mins = this.uiMode === 'stale' && !isStale ? 45 : dataAgeMinutes;
+        const fallbackNote = usedFallbackAfterRemoteError
+          ? ` Uzak veri kaynağına ulaşılamadığı için (${
+              remoteFallbackReason || 'bağlantı hatası'
+            }) yerel yedek paket verisi gösterilmektedir; bu veri canlı/yeni değildir.`
+          : '';
         staleTextEl.textContent = `Görüntülenen son başarılı uçuş verisi ${mins} dakika önce çekilmiştir (${formatDateTime(
           latest.fetchedAt
-        )}). Otomatik GitHub Actions iş akışı veya "npm run data:fetch" ile güncellenebilir.`;
+        )}).${fallbackNote} Otomatik GitHub Actions iş akışı veya "Veriyi Yenile" ile güncellenebilir.`;
       }
     }
 
@@ -218,7 +317,8 @@ class DashboardController {
 
   private renderHeaderMeta(): void {
     if (!this.loadedData) return;
-    const { latest, loadedFrom, dataAgeMinutes } = this.loadedData;
+    const { latest, loadedFrom, dataAgeMinutes, isStale, usedFallbackAfterRemoteError } =
+      this.loadedData;
 
     const sourceBadge = document.getElementById('data-source-badge');
     const ageBadge = document.getElementById('data-age-badge');
@@ -228,6 +328,12 @@ class DashboardController {
       if (latest.isDemo) {
         sourceBadge.textContent = 'DEMO VERİSİ (Canlı Değil)';
         sourceBadge.className = 'badge badge-outline';
+      } else if (usedFallbackAfterRemoteError) {
+        sourceBadge.textContent = 'Eski Veri (Yerel Yedek)';
+        sourceBadge.className = 'badge badge-outline';
+      } else if (isStale) {
+        sourceBadge.textContent = 'OpenSky Verisi (Eski)';
+        sourceBadge.className = 'badge badge-outline';
       } else {
         sourceBadge.textContent = 'OpenSky Canlı Veri';
         sourceBadge.className = 'badge badge-accent';
@@ -235,9 +341,14 @@ class DashboardController {
     }
 
     if (ageBadge) {
-      const originLabel = loadedFrom === 'github-data-branch' ? 'data dalı' : 'yerel JSON';
+      const originLabel =
+        loadedFrom === 'github-data-branch'
+          ? 'data dalı'
+          : usedFallbackAfterRemoteError
+          ? 'yerel yedek'
+          : 'yerel JSON';
       ageBadge.textContent =
-        dataAgeMinutes <= 1
+        dataAgeMinutes <= 1 && !usedFallbackAfterRemoteError
           ? `Az önce güncellendi (${originLabel})`
           : `${dataAgeMinutes} dk önce (${originLabel})`;
     }

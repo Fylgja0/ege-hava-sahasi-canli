@@ -1,0 +1,42 @@
+name: CI (Test, Güvenlik Denetimi ve Derleme)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Node.js 24 Test, Audit ve Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Kaynak kodunu al
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node.js 24 ortamını hazırla
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Bağımlılıkları temiz kur (npm ci)
+        run: npm ci
+
+      - name: Birim ve entegrasyon testlerini çalıştır (npm test)
+        run: npm test
+
+      - name: Yüksek/kritik güvenlik açıklarını denetle (npm audit)
+        run: npm audit --audit-level=high
+
+      - name: Tip kontrolü ve üretim derlemesini doğrula (npm run build)
+        run: npm run build

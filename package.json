@@ -4,20 +4,24 @@
   "private": true,
   "description": "MCBÜ Büyük Veri Analistliği - Ege Hava Sahası Canlı Gözlem ve Analiz Paneli",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "data:fetch": "node scripts/fetch-opensky.mjs"
+    "data:fetch": "node scripts/fetch-opensky.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
-    "chart.js": "^4.4.8",
+    "chart.js": "^4.6.1",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.16",
-    "@types/node": "^22.13.9",
-    "typescript": "^5.7.3",
-    "vite": "^6.2.0"
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5"
   }
 }

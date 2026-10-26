@@ -1,6 +1,6 @@
 import type { LatestFlightData, SnapshotsDocument } from './types';
 
-const REMOTE_DATA_BRANCH_BASE =
+export const DEFAULT_REMOTE_DATA_BASE_URL =
   'https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data';
 const LOCAL_DATA_BASE = './data';
 
@@ -10,9 +10,11 @@ export interface LoadedDashboardData {
   loadedFrom: 'local-static' | 'github-data-branch';
   isStale: boolean;
   dataAgeMinutes: number;
+  usedFallbackAfterRemoteError: boolean;
+  remoteFallbackReason: string | null;
 }
 
-const STALE_THRESHOLD_MINUTES = 30;
+export const STALE_THRESHOLD_MINUTES = 30;
 
 async function fetchJsonWithTimeout<T>(url: string, timeoutMs = 8000): Promise<T> {
   const controller = new AbortController();
@@ -34,13 +36,20 @@ async function fetchJsonWithTimeout<T>(url: string, timeoutMs = 8000): Promise<T
 }
 
 /**
- * Tarayıcıdan doğrudan OpenSky API'sine istek ATILMAZ.
- * Yalnızca veri toplama scriptinin ürettiği latest.json ve snapshots.json okunur.
- * Üretim ortamında (GitHub Pages veya VITE_DATA_SOURCE=remote) önce `data` dalındaki
- * güncel JSON dosyaları denenir; yerel geliştirmede `./data/` altındaki dosyalar okunur.
+ * Tarayıcıdan doğrudan OpenSky API'sine hiçbir koşulda istek ATILMAZ.
+ * Yalnızca veri toplama scriptinin yayımladığı latest.json ve snapshots.json okunur.
+ *
+ * Öncelik sırası:
+ * 1. VITE_DATA_BASE_URL ortam değişkeni tanımlıysa önce bu adres kullanılır.
+ * 2. Değilse üretim derlemesinde (import.meta.env.PROD) veya GitHub Pages'te varsayılan olarak
+ *    https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data kullanılır.
+ * 3. Yerel geliştirmede (npm run dev) veya uzak adres okunamadığında ./data yerel yedeği kullanılır.
+ *    Uzak adres başarısız olup yerel yedeğe düşüldüğünde veri asla yeni/canlı gibi işaretlenmez;
+ *    eski veri (isStale = true) ve yedek uyarısı aktif edilir.
  */
 export async function loadDashboardData(preferRemoteBranch = false): Promise<LoadedDashboardData> {
-  const envBase = import.meta.env.VITE_DATA_BASE_URL as string | undefined;
+  const envBase = (import.meta.env.VITE_DATA_BASE_URL as string | undefined)?.trim();
+  const isProdBuild = Boolean(import.meta.env.PROD);
   const isGitHubPages =
     typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
 
@@ -48,13 +57,14 @@ export async function loadDashboardData(preferRemoteBranch = false): Promise<Loa
 
   if (envBase) {
     candidateBases.push({ base: envBase.replace(/\/$/, ''), type: 'github-data-branch' });
-  } else if (preferRemoteBranch || isGitHubPages) {
-    candidateBases.push({ base: REMOTE_DATA_BRANCH_BASE, type: 'github-data-branch' });
+  } else if (preferRemoteBranch || isProdBuild || isGitHubPages) {
+    candidateBases.push({ base: DEFAULT_REMOTE_DATA_BASE_URL, type: 'github-data-branch' });
   }
 
   candidateBases.push({ base: LOCAL_DATA_BASE, type: 'local-static' });
 
   let lastError: Error | null = null;
+  let remoteError: Error | null = null;
 
   for (const candidate of candidateBases) {
     try {
@@ -66,17 +76,28 @@ export async function loadDashboardData(preferRemoteBranch = false): Promise<Loa
       const fetchedTimeMs = new Date(latest.fetchedAt).getTime();
       const ageMs = Math.max(0, Date.now() - (Number.isNaN(fetchedTimeMs) ? 0 : fetchedTimeMs));
       const dataAgeMinutes = Math.round(ageMs / 60000);
-      const isStale = dataAgeMinutes > STALE_THRESHOLD_MINUTES;
+      const usedFallbackAfterRemoteError =
+        candidate.type === 'local-static' && remoteError !== null;
+
+      // Uzaktaki güncel veri okunamayıp yerel paket yedeğine düşüldüyse eski veri uyarısını zorunlu göster
+      const isStale =
+        dataAgeMinutes > STALE_THRESHOLD_MINUTES || usedFallbackAfterRemoteError;
 
       return {
         latest,
         snapshotsDoc,
         loadedFrom: candidate.type,
         isStale,
-        dataAgeMinutes
+        dataAgeMinutes,
+        usedFallbackAfterRemoteError,
+        remoteFallbackReason: remoteError ? remoteError.message : null
       };
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      const normalizedErr = err instanceof Error ? err : new Error(String(err));
+      lastError = normalizedErr;
+      if (candidate.type === 'github-data-branch') {
+        remoteError = normalizedErr;
+      }
     }
   }
 
