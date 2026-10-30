@@ -1,0 +1,76 @@
+# Gerçek Yerel Doğrulama Çıktıları (2026-10-30)
+# Çalışma Dizini: /home/ahmetcan/ege-hava-sahasi-canli
+
+========================================================================
+1. KOMUT: npm test (Çıkış Kodu: 0)
+========================================================================
+> ege-hava-sahasi-canli@0.1.0 test
+> node --test tests/*.test.mjs
+
+✔ compare-data: Yeni snapshot veya fetchedAt değiştiğinde true döner (2.811498ms)
+✔ compare-data: Yalnızca lastAttempt.timestamp ve lastAttempt.message değiştiğinde false döner (0.291956ms)
+✔ compare-data: Hata türü (errorType) veya durum (status) değiştiğinde true döner (0.325494ms)
+✔ compare-data: Eski dosyalar yoksa (ilk çalıştırma) true döner ve CLI üzerinden doğru çıktı verir (141.639463ms)
+✔ fetch-opensky: İlk çalıştırmada API başarısızsa açık DEMO etiketi, tek snapshot ve sıfır olmayan çıkış kodu (106.864892ms)
+✔ fetch-opensky: OAuth2, Anonim Mod, Yeni Snapshot Eklenmesi, HTTP 429, Bağlantı Hatası ve Gizli Bilgi Sızıntı Önleme (358.804111ms)
+✔ security-config: public/_headers HSTS (max-age=31536000, includeSubDomains olmadan) ve mevcut güvenlik başlıklarını korur (15.81735ms)
+✔ security-config: public/.well-known/security.txt RFC 9116 alanlarını içerir ve uydurma e-posta içermez (5.130922ms)
+✔ security-config: Dependabot ve Gitleaks CI yapılandırmaları doğrulanmış SHA ve haftalık takvimle tanımlıdır (2.265373ms)
+✔ security-config: Sahte test değerleriyle gizli bilgi sızıntı kontrolü ve ara kontrol etiketi temizliği (3.18076ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 602.248839
+
+========================================================================
+2. KOMUT: npm audit --audit-level=high (Çıkış Kodu: 0)
+========================================================================
+found 0 vulnerabilities
+
+========================================================================
+3. KOMUT: npm run build (Çıkış Kodu: 0)
+========================================================================
+> ege-hava-sahasi-canli@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.5 building client environment for production...
+✓ 13 modules transformed.
+dist/index.html                  18.39 kB │ gzip:   4.84 kB
+dist/assets/index-BqBPpjlU.css   28.64 kB │ gzip:   9.50 kB
+dist/assets/index-D8KG5xPO.js   340.17 kB │ gzip: 109.99 kB │ map: 1,566.33 kB
+✓ built in 294ms
+
+========================================================================
+4. DERLEME SONRASI ÜRETİLEN dist/_headers DOĞRULAMASI
+========================================================================
+/*
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://raw.githubusercontent.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+========================================================================
+5. DERLEME SONRASI ÜRETİLEN dist/.well-known/security.txt DOĞRULAMASI
+========================================================================
+# RFC 9116 security.txt — Ege Hava Sahası Canlı (Akademik Ders Projesi)
+# Not: Bu dosya uydurma e-posta adresi içermez.
+# GitHub Security Advisories özel bildirim bağlantısının dış kullanıcılarca kullanılabilmesi için
+# depo ayarlarından "Private vulnerability reporting" özelliğinin etkinleştirilmesi veya
+# depo sahibinin yayımlanmasına izin verdiği gerçek bir iletişim adresinin eklenmesi gerekir.
+Contact: https://github.com/Fylgja0/ege-hava-sahasi-canli/security/advisories/new
+Contact: https://github.com/Fylgja0/ege-hava-sahasi-canli/issues
+Expires: 2027-10-30T00:00:00.000Z
+Preferred-Languages: tr, en
+Canonical: https://ege-hava-sahasi-canli.pages.dev/.well-known/security.txt
+
+========================================================================
+6. WRANGLER CONFIG İNDİRME DENEMESİ (Çıkış Kodu: 1)
+========================================================================
+Komut: npx --no-install wrangler pages download config ege-hava-sahasi-canli
+Sonuç: Yerel ortamda wrangler paketi ve Cloudflare kimlik doğrulama oturumu (CLOUDFLARE_API_TOKEN) bulunmadığından çalıştırılamadı. Örnek/sahte wrangler.toml üretilmedi.

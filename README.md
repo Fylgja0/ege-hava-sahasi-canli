@@ -1,7 +1,9 @@
 # Ege Hava Sahası Canlı
 
 **Manisa Celal Bayar Üniversitesi — Büyük Veri Analistliği Programı**  
-*(İlk Ara Kontrol ve Canlıya Çıkış Hazırlık Sürümü — Bulut Bilişim ve Siber Güvenlik Entegrasyonuna Hazır Altyapı)*
+*(BVA 2245 Kullanıcı Arayüzü Tasarımı & Bulut Bilişim ve Siber Güvenlik Ders Projesi — Final Sürümü)*
+
+> **Akademik Proje Notu:** Bu uygulama, Manisa Celal Bayar Üniversitesi Büyük Veri Analistliği Programı kapsamındaki *BVA 2245 Kullanıcı Arayüzü Tasarımı* ile *Bulut Bilişim ve Siber Güvenlik* dersleri için geliştirilmiş akademik bir öğrenci projesidir. Herhangi bir kurumun resmî ürünü, resmî havacılık/radar sistemi veya resmî kurum iş birliği **değildir**.
 
 **Ege Hava Sahası Canlı**, Ege Denizi ve çevresindeki sivil hava trafiğini (`36.5°K–40.5°K`, `24.5°D–30.5°D`) **OpenSky Network** verileri üzerinden toplayan, normalleştiren ve koyu radar estetiğinde erişilebilirlik ilkelerini (WCAG AA kontrast ve klavye erişimi hedeflerini) gözeterek bir web arayüzünde görselleştiren bir gözlem ve analiz uygulamasıdır.
 
@@ -13,7 +15,7 @@
 2. [Çalıştırma, Test ve Güvenlik Denetimi Komutları](#2-çalıştırma-test-ve-güvenlik-denetimi-komutları)
 3. [Veri Kaynağı, Sınır Kutusu ve Saklama Süresi](#3-veri-kaynağı-sınır-kutusu-ve-saklama-süresi)
 4. [Basit Mimari Şeması, `data` Dalı Stratejisi ve Canlı Yenileme](#4-basit-mimari-şeması-data-dalı-stratejisi-ve-canlı-yenileme)
-5. [Cloudflare Pages Dağıtımı ve Güvenlik Başlıkları (CSP)](#5-cloudflare-pages-dağıtımı-ve-güvenlik-başlıkları-csp)
+5. [Cloudflare Pages Dağıtımı, Güvenlik Başlıkları (CSP) ve Siber Güvenlik Dokümantasyonu](#5-cloudflare-pages-dağıtımı-güvenlik-başlıkları-csp-ve-siber-güvenlik-dokümantasyonu)
 6. [Arayüz Özellikleri ve Erişilebilirlik](#6-arayüz-özellikleri-ve-erişilebilirlik)
 7. [Harita ve Veri Atıfları (OpenStreetMap & OpenSky)](#7-harita-ve-veri-atıfları-openstreetmap--opensky)
 8. [Lisans](#8-lisans)
@@ -80,10 +82,12 @@ npm run build
 npm run preview
 ```
 
-### Otomatik CI İş Akışı (`.github/workflows/ci.yml`)
-- `main` dalına yapılan her `push` ve `main` hedefli her `pull_request` olayında otomatik çalışır.
-- En az ayrıcalık ilkesiyle (`permissions: contents: read`) ve tam commit SHA ile sabitlenmiş `actions/checkout` (`v7.0.1`) ve `actions/setup-node` (`v7.1.0`, Node.js 24, `package-manager-cache: false`) adımlarını kullanır.
-- Sırasıyla `npm ci`, `npm test`, `npm audit --audit-level=high` ve `npm run build` adımlarını gerçek OpenSky API'sine istek göndermeden ve hiçbir gizli anahtara (`secret`) ihtiyaç duymadan doğrular.
+### Otomatik CI, Gizli Bilgi Taraması ve Dependabot (`.github/workflows/ci.yml` & `.github/dependabot.yml`)
+- **CI İş Akışı (`.github/workflows/ci.yml`):** `main` dalına yapılan her `push`, `main` hedefli her `pull_request` ve manuel `workflow_dispatch` olayında otomatik çalışır.
+- **En Az Ayrıcalık ve Sabitlenmiş SHA:** `permissions: contents: read` ve `persist-credentials: false` ilkeleriyle tam commit SHA ile sabitlenmiş `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` (`v7.0.1`), `actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1` (`v7.1.0`, Node.js 24) ve `gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e` (`v3.0.0`, Node.js 24 çalışma zamanı) adımlarını kullanır.
+- **Derleme ve Test Doğrulaması (`build-and-test`):** Sırasıyla `npm ci`, `npm test`, `npm audit --audit-level=high` ve `npm run build` adımlarını gerçek OpenSky API'sine istek göndermeden ve hiçbir gizli anahtara (`secret`) ihtiyaç duymadan doğrular.
+- **Gitleaks Gizli Bilgi Taraması (`gitleaks`):** `fetch-depth: 0` ile tüm git geçmişini tarar; kişisel GitHub hesabı (`Fylgja0`) ve `GITLEAKS_ENABLE_COMMENTS: "false"` yapılandırması sayesinde fork/PR senaryolarında hiçbir ek secret gerektirmez.
+- **Dependabot (`.github/dependabot.yml`):** Hem `npm` bağımlılıklarını hem de `github-actions` sürümlerini haftalık (`weekly`) olarak kontrol eder.
 
 ---
 
@@ -133,9 +137,10 @@ flowchart LR
 1. **Otomatik Veri Toplama (`.github/workflows/fetch-opensky.yml`):**
    - Her 30 dakikada bir (`cron: '*/30 * * * *'`) veya GitHub Actions sekmesinden **manuel (`workflow_dispatch`)** olarak tetiklenir.
    - `scripts/compare-data.mjs` yardımcısını kullanarak `refs/remotes/origin/data` dalındaki önceki dosyalarla yeni üretilen dosyaları karşılaştırır. Tekrarlayan API kesintilerinde yalnızca `lastAttempt.timestamp` / `lastAttempt.message` değişmişse her 30 dakikada bir gereksiz commit üretmez; gerçek veri (`fetchedAt`, `snapshots`) veya hata türü (`errorType`) değiştiğinde `data` dalını günceller.
-2. **İstemci Veri Kaynağı Önceliği (`src/dataService.ts`):**
+2. **İstemci Veri Kaynağı Önceliği ve Kota İzolasyonu (`src/dataService.ts`):**
    - `VITE_DATA_BASE_URL` ortam değişkeni tanımlıysa önce bu adresi kullanır.
-   - Tanımlı değilse üretim derlemesinde (`import.meta.env.PROD`) ve GitHub Pages üzerinde varsayılan olarak `https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data` adresinden `latest.json` ve `snapshots.json` dosyalarını okur.
+   - Tanımlı değilse üretim derlemesinde (`import.meta.env.PROD`) ve GitHub Pages üzerinde varsayılan olarak `https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data` adresinden herkese açık (`public`) `latest.json` ve `snapshots.json` dosyalarını okur.
+   - **Önemli Kota ve Güvenlik Gerçeği:** Uçuş verileri istemci tarafından `raw.githubusercontent.com` üzerinden herkese açık statik JSON olarak okunduğundan, **canlı web sayfasının (`https://ege-hava-sahasi-canli.pages.dev/`) sık yenilenmesi veya sayfa kazıması (scraping) OpenSky API kotasını doğrudan tüketmez**. OpenSky API'sine giden istekler yalnızca GitHub Actions üzerindeki zamanlanmış iş akışı (`fetch-opensky.yml`) tarafından 30 dakikada bir yapılır.
    - Yerel geliştirmede (`npm run dev`) doğrudan yerel `./data` dosyalarını okur.
    - Üretim ortamında uzak veri okunamazsa yerel paket yedeğine (`./data`) düşer; ancak bu durumda veriyi asla yeni/canlı gibi işaretlemez, `isStale = true` ve `Eski Veri (Yerel Yedek)` uyarısını aktif eder.
 3. **Canlı Arayüz Otomatik Yenileme (`src/main.ts`):**
@@ -145,9 +150,9 @@ flowchart LR
 
 ---
 
-## 5. Cloudflare Pages Dağıtımı ve Güvenlik Başlıkları (CSP)
+## 5. Cloudflare Pages Dağıtımı, Güvenlik Başlıkları (CSP) ve Siber Güvenlik Dokümantasyonu
 
-Uygulama Cloudflare Pages üzerinde statik site olarak yayınlanmaya hazırdır:
+Uygulama Cloudflare Pages (`https://ege-hava-sahasi-canli.pages.dev/`) üzerinde statik site olarak yayınlanmaktadır:
 
 | Ayar | Değer |
 | :--- | :--- |
@@ -159,6 +164,7 @@ Uygulama Cloudflare Pages üzerinde statik site olarak yayınlanmaya hazırdır:
 
 ### Güvenlik Başlıkları (`public/_headers` → `dist/_headers`)
 Vite derlemesi sırasında `public/_headers` dosyası otomatik olarak `dist/_headers` konumuna kopyalanır ve aşağıdaki başlıkları uygular:
+- `Strict-Transport-Security: max-age=31536000` (`includeSubDomains` eklenmemiştir)
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `X-Frame-Options: DENY`
@@ -167,8 +173,22 @@ Vite derlemesi sırasında `public/_headers` dosyası otomatik olarak `dist/_hea
   ```text
   default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://raw.githubusercontent.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
   ```
-  > **Neden `style-src` içinde `'unsafe-inline'` kullanılıyor?**
+  > **Neden `style-src` içinde `'unsafe-inline'` kullanılıyor? (Leaflet İstisnası)**
   > **Leaflet** harita kütüphanesi, harita karolarının konumlandırılması (`transform: translate3d(...)`) ve uçak işaretçilerinin yön açısına (`transform: rotate(...)`) göre döndürülmesi için DOM öğelerine çalışma zamanında satır içi (inline) CSS stilleri uygular. Bu nedenle `style-src` için `'unsafe-inline'` gereklidir. Buna karşın **`script-src` tamamen `'self'` ile sınırlandırılmıştır**; `unsafe-inline` veya `unsafe-eval` içermez.
+
+### Güvenlik İletişim Dosyası (`public/.well-known/security.txt` → `dist/.well-known/security.txt`)
+- RFC 9116 standardına uygun olarak `Expires`, `Preferred-Languages: tr, en`, `Canonical` ve `Contact` alanlarını içerir; uydurma e-posta adresi barındırmaz.
+- GitHub Security Advisories özel bildirim bağlantısının (`/security/advisories/new`) dış araştırmacılar tarafından kullanılabilmesi için depo sahibi tarafından GitHub **Settings → Code security → Private vulnerability reporting** ayarının etkinleştirilmesi gerekir.
+
+### Wrangler Yapılandırma Güvenliği ve WAF / Rate-Limiting Durumu
+- **Wrangler (`wrangler.toml`) Notu:** Cloudflare Pages projelerinde depoya `wrangler.toml` eklendiğinde üretim yapılandırmasının tek doğruluk kaynağı (source-of-truth) hâline gelebilir. Bu nedenle örnek ID veya rastgele ayarlarla `wrangler.toml` oluşturulmamıştır; yalnızca `npx wrangler pages download config ege-hava-sahasi-canli` komutuyla gerçek üretim yapılandırması indirilip doğrulandıktan sonra eklenmesi önerilir.
+- **WAF / Rate-Limiting Durumu:** Kaynak kod içinde aktif bir Cloudflare WAF veya hız sınırlama (rate-limit) kuralı tanımlı **değildir**. Mevcut canlı adres `*.pages.dev` (`https://ege-hava-sahasi-canli.pages.dev/`) alt alan adı üzerindedir; Cloudflare Zone tabanlı özel WAF / Rate Limiting kuralları tipik olarak Cloudflare hesabındaki bir Zone'a bağlı özel alan adı (custom domain) gerektirir.
+
+### Siber Güvenlik, Tehdit Modeli ve Kanıt Belgeleri (`docs/`)
+- **[`docs/DFD_STRIDE.md`](docs/DFD_STRIDE.md):** Veri Akış Diyagramı (DFD), güven sınırları ve STRIDE tehdit modeli tablosu.
+- **[`docs/incident-response-runbook.md`](docs/incident-response-runbook.md):** Gizli bilgi sızıntısı, API kesintisi/`HTTP 429`, bağımlılık zafiyeti ve dağıtım sorunları için olay müdahale kılavuzu.
+- **[`docs/evidence/README.md`](docs/evidence/README.md):** Yerel doğrulama çıktıları ile Lighthouse, OWASP ZAP, güvenlik başlıkları, WAF, dal koruma ve kullanıcı testi kanıtlarının toplanma kılavuzu.
+- **[`docs/evidence/user-testing-template.md`](docs/evidence/user-testing-template.md):** 2 kullanıcı × 3 görev için boş kullanılabilirlik testi kayıt şablonu.
 
 ---
 

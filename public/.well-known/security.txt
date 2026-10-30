@@ -1,0 +1,10 @@
+# RFC 9116 security.txt — Ege Hava Sahası Canlı (Akademik Ders Projesi)
+# Not: Bu dosya uydurma e-posta adresi içermez.
+# GitHub Security Advisories özel bildirim bağlantısının dış kullanıcılarca kullanılabilmesi için
+# depo ayarlarından "Private vulnerability reporting" özelliğinin etkinleştirilmesi veya
+# depo sahibinin yayımlanmasına izin verdiği gerçek bir iletişim adresinin eklenmesi gerekir.
+Contact: https://github.com/Fylgja0/ege-hava-sahasi-canli/security/advisories/new
+Contact: https://github.com/Fylgja0/ege-hava-sahasi-canli/issues
+Expires: 2027-10-30T00:00:00.000Z
+Preferred-Languages: tr, en
+Canonical: https://ege-hava-sahasi-canli.pages.dev/.well-known/security.txt
