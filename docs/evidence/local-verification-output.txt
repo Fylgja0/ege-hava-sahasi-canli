@@ -1,77 +1,132 @@
-# Gerçek Yerel Doğrulama Çıktıları (2026-10-30)
-# Çalışma Dizini: /home/ahmetcan/ege-hava-sahasi-canli
+=== Verification date ===
+2026-10-30T13:00:05+03:00
 
-========================================================================
-1. KOMUT: npm test (Çıkış Kodu: 0)
-========================================================================
+=== Runtime versions ===
+v22.23.4
+10.9.9
+
+$ npm ci
+
+added 25 packages, and audited 26 packages in 12s
+
+9 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+$ npm test
+
 > ege-hava-sahasi-canli@0.1.0 test
 > node --test tests/*.test.mjs
 
-✔ compare-data: Yeni snapshot veya fetchedAt değiştiğinde true döner (2.811498ms)
-✔ compare-data: Yalnızca lastAttempt.timestamp ve lastAttempt.message değiştiğinde false döner (0.291956ms)
-✔ compare-data: Hata türü (errorType) veya durum (status) değiştiğinde true döner (0.325494ms)
-✔ compare-data: Eski dosyalar yoksa (ilk çalıştırma) true döner ve CLI üzerinden doğru çıktı verir (141.639463ms)
-✔ fetch-opensky: İlk çalıştırmada API başarısızsa açık DEMO etiketi, tek snapshot ve sıfır olmayan çıkış kodu (106.864892ms)
-✔ fetch-opensky: OAuth2, Anonim Mod, Yeni Snapshot Eklenmesi, HTTP 429, Bağlantı Hatası ve Gizli Bilgi Sızıntı Önleme (358.804111ms)
-✔ security-config: public/_headers HSTS (max-age=31536000, includeSubDomains olmadan) ve mevcut güvenlik başlıklarını korur (15.81735ms)
-✔ security-config: public/.well-known/security.txt RFC 9116 alanlarını içerir ve uydurma e-posta içermez (5.130922ms)
-✔ security-config: Dependabot ve Gitleaks CI yapılandırmaları doğrulanmış SHA ve haftalık takvimle tanımlıdır (2.265373ms)
-✔ security-config: Sahte test değerleriyle gizli bilgi sızıntı kontrolü ve ara kontrol etiketi temizliği (5.421516ms)
-✔ security-config: DFD_STRIDE.md 10 ayrı tehdit senaryosu (T-01..T-10), risk eşikleri ve T-08 bot/scraper analizi içerir (5.169956ms)
-ℹ tests 11
-ℹ suites 0
-ℹ pass 11
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-ℹ todo 0
-ℹ duration_ms 619.407413
+TAP version 13
+# Subtest: compare-data: Yeni snapshot veya fetchedAt değiştiğinde true döner
+ok 1 - compare-data: Yeni snapshot veya fetchedAt değiştiğinde true döner
+  ---
+  duration_ms: 2.582741
+  type: 'test'
+  ...
+# Subtest: compare-data: Yalnızca lastAttempt.timestamp ve lastAttempt.message değiştiğinde false döner
+ok 2 - compare-data: Yalnızca lastAttempt.timestamp ve lastAttempt.message değiştiğinde false döner
+  ---
+  duration_ms: 0.389628
+  type: 'test'
+  ...
+# Subtest: compare-data: Hata türü (errorType) veya durum (status) değiştiğinde true döner
+ok 3 - compare-data: Hata türü (errorType) veya durum (status) değiştiğinde true döner
+  ---
+  duration_ms: 0.358935
+  type: 'test'
+  ...
+# Subtest: compare-data: Eski dosyalar yoksa (ilk çalıştırma) true döner ve CLI üzerinden doğru çıktı verir
+ok 4 - compare-data: Eski dosyalar yoksa (ilk çalıştırma) true döner ve CLI üzerinden doğru çıktı verir
+  ---
+  duration_ms: 104.118259
+  type: 'test'
+  ...
+# Subtest: fetch-opensky: İlk çalıştırmada API başarısızsa açık DEMO etiketi, tek snapshot ve sıfır olmayan çıkış kodu
+ok 5 - fetch-opensky: İlk çalıştırmada API başarısızsa açık DEMO etiketi, tek snapshot ve sıfır olmayan çıkış kodu
+  ---
+  duration_ms: 101.120675
+  type: 'test'
+  ...
+# Subtest: fetch-opensky: OAuth2, Anonim Mod, Yeni Snapshot Eklenmesi, HTTP 429, Bağlantı Hatası ve Gizli Bilgi Sızıntı Önleme
+ok 6 - fetch-opensky: OAuth2, Anonim Mod, Yeni Snapshot Eklenmesi, HTTP 429, Bağlantı Hatası ve Gizli Bilgi Sızıntı Önleme
+  ---
+  duration_ms: 302.117361
+  type: 'test'
+  ...
+# Subtest: security-config: public/_headers ! Access-Control-Allow-Origin, HSTS (max-age=31536000, includeSubDomains olmadan) ve mevcut güvenlik başlıklarını korur
+ok 7 - security-config: public/_headers ! Access-Control-Allow-Origin, HSTS (max-age=31536000, includeSubDomains olmadan) ve mevcut güvenlik başlıklarını korur
+  ---
+  duration_ms: 6.61528
+  type: 'test'
+  ...
+# Subtest: security-config: public/.well-known/security.txt RFC 9116 alanlarını içerir ve uydurma e-posta içermez
+ok 8 - security-config: public/.well-known/security.txt RFC 9116 alanlarını içerir ve uydurma e-posta içermez
+  ---
+  duration_ms: 1.566116
+  type: 'test'
+  ...
+# Subtest: security-config: Dependabot ve Gitleaks CI yapılandırmaları doğrulanmış SHA ve haftalık takvimle tanımlıdır
+ok 9 - security-config: Dependabot ve Gitleaks CI yapılandırmaları doğrulanmış SHA ve haftalık takvimle tanımlıdır
+  ---
+  duration_ms: 1.619859
+  type: 'test'
+  ...
+# Subtest: security-config: Sahte test değerleriyle gizli bilgi sızıntı kontrolü ve ara kontrol etiketi temizliği
+ok 10 - security-config: Sahte test değerleriyle gizli bilgi sızıntı kontrolü ve ara kontrol etiketi temizliği
+  ---
+  duration_ms: 2.42506
+  type: 'test'
+  ...
+# Subtest: security-config: DFD_STRIDE.md 10 ayrı tehdit senaryosu (T-01..T-10), risk eşikleri ve T-08 bot/scraper analizi içerir
+ok 11 - security-config: DFD_STRIDE.md 10 ayrı tehdit senaryosu (T-01..T-10), risk eşikleri ve T-08 bot/scraper analizi içerir
+  ---
+  duration_ms: 1.781705
+  type: 'test'
+  ...
+# Subtest: security-config: public/404.html, public/robots.txt ve public/sitemap.xml standartlara uygun ve erişilebilirdir
+ok 12 - security-config: public/404.html, public/robots.txt ve public/sitemap.xml standartlara uygun ve erişilebilirdir
+  ---
+  duration_ms: 3.524719
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 520.87039
 
-========================================================================
-2. KOMUT: npm audit --audit-level=high (Çıkış Kodu: 0)
-========================================================================
+$ npm audit --audit-level=high
 found 0 vulnerabilities
 
-========================================================================
-3. KOMUT: npm run build (Çıkış Kodu: 0)
-========================================================================
+$ npm run build
+
 > ege-hava-sahasi-canli@0.1.0 build
 > tsc --noEmit && vite build
 
 vite v8.3.5 building client environment for production...
+transforming...
 ✓ 13 modules transformed.
+rendering chunks...
+computing gzip size...
 dist/index.html                  18.39 kB │ gzip:   4.84 kB
 dist/assets/index-BqBPpjlU.css   28.64 kB │ gzip:   9.50 kB
 dist/assets/index-D8KG5xPO.js   340.17 kB │ gzip: 109.99 kB │ map: 1,566.33 kB
-✓ built in 294ms
 
-========================================================================
-4. DERLEME SONRASI ÜRETİLEN dist/_headers DOĞRULAMASI
-========================================================================
-/*
-  Strict-Transport-Security: max-age=31536000
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  X-Frame-Options: DENY
-  Permissions-Policy: geolocation=(), camera=(), microphone=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://raw.githubusercontent.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+✓ built in 247ms
 
-========================================================================
-5. DERLEME SONRASI ÜRETİLEN dist/.well-known/security.txt DOĞRULAMASI
-========================================================================
-# RFC 9116 security.txt — Ege Hava Sahası Canlı (Akademik Ders Projesi)
-# Not: Bu dosya uydurma e-posta adresi içermez.
-# GitHub Security Advisories özel bildirim bağlantısının dış kullanıcılarca kullanılabilmesi için
-# depo ayarlarından "Private vulnerability reporting" özelliğinin etkinleştirilmesi veya
-# depo sahibinin yayımlanmasına izin verdiği gerçek bir iletişim adresinin eklenmesi gerekir.
-Contact: https://github.com/Fylgja0/ege-hava-sahasi-canli/security/advisories/new
-Contact: https://github.com/Fylgja0/ege-hava-sahasi-canli/issues
-Expires: 2027-10-30T00:00:00.000Z
-Preferred-Languages: tr, en
-Canonical: https://ege-hava-sahasi-canli.pages.dev/.well-known/security.txt
+=== Build artifact checks ===
+OK: dist/_headers
+OK: dist/404.html
+OK: dist/robots.txt
+OK: dist/sitemap.xml
+OK: dist/.well-known/security.txt
 
-========================================================================
-6. WRANGLER CONFIG İNDİRME DENEMESİ (Çıkış Kodu: 1)
-========================================================================
-Komut: npx --no-install wrangler pages download config ege-hava-sahasi-canli
-Sonuç: Yerel ortamda wrangler paketi ve Cloudflare kimlik doğrulama oturumu (CLOUDFLARE_API_TOKEN) bulunmadığından çalıştırılamadı. Örnek/sahte wrangler.toml üretilmedi.
+=== CORS override in dist/_headers ===
+2:  ! Access-Control-Allow-Origin
