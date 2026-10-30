@@ -85,3 +85,28 @@ test('security-config: Sahte test değerleriyle gizli bilgi sızıntı kontrolü
     'README.md içinde eski İlk Ara Kontrol alt başlığı kalmamalı'
   );
 });
+
+test('security-config: DFD_STRIDE.md 10 ayrı tehdit senaryosu (T-01..T-10), risk eşikleri ve T-08 bot/scraper analizi içerir', async () => {
+  const dfdStride = await fs.readFile(path.join(ROOT_DIR, 'docs', 'DFD_STRIDE.md'), 'utf8');
+  const runbook = await fs.readFile(
+    path.join(ROOT_DIR, 'docs', 'incident-response-runbook.md'),
+    'utf8'
+  );
+  const readme = await fs.readFile(path.join(ROOT_DIR, 'README.md'), 'utf8');
+
+  for (let i = 1; i <= 10; i += 1) {
+    const threatId = `T-${String(i).padStart(2, '0')}`;
+    assert.ok(dfdStride.includes(threatId), `DFD_STRIDE.md içinde ${threatId} senaryosu bulunmalı`);
+    assert.ok(
+      runbook.includes(threatId),
+      `incident-response-runbook.md içinde ${threatId} referansı bulunmalı`
+    );
+  }
+
+  assert.ok(dfdStride.includes('Düşük Risk (`1 – 5`)'));
+  assert.ok(dfdStride.includes('Orta Risk (`6 – 12`)'));
+  assert.ok(dfdStride.includes('Yüksek Risk (`13 – 25`)'));
+  assert.ok(dfdStride.includes('ölçülmüş kesin gerçekler değildir'));
+  assert.ok(dfdStride.includes('Özel Atanmış Tehdit İncelemesi: Bot / Scraper Kaynaklı Hizmet Tüketimi (`T-08`)'));
+  assert.ok(readme.includes('kesin 30 dakikalık veri tazeliği garantisi vermez'));
+});

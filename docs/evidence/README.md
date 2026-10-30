@@ -1,8 +1,8 @@
 # Kanıt Klasörü ve Doğrulama Rehberi (`docs/evidence/`)
 
-**Proje:** Ege Hava Sahası Canlı (`ege-hava-sahasi-canli`)  
-**Kapsam:** *BVA 2245 Kullanıcı Arayüzü Tasarımı* ve *Bulut Bilişim ve Siber Güvenlik* Final Teslim Kanıtları  
-**Depo:** `https://github.com/Fylgja0/ege-hava-sahasi-canli`  
+**Proje:** Ege Hava Sahası Canlı (`ege-hava-sahasi-canli`)
+**Kapsam:** *BVA 2245 Kullanıcı Arayüzü Tasarımı* ve *Bulut Bilişim ve Siber Güvenlik* Final Teslim Kanıtları
+**Depo:** `https://github.com/Fylgja0/ege-hava-sahasi-canli`
 **Canlı Dağıtım (Kendi Sitemiz):** `https://ege-hava-sahasi-canli.pages.dev/`
 
 > **Temel Kural (Dürüst Kanıt İlkesi):**
@@ -24,7 +24,7 @@ npm run build
 ```
 
 - Bu komutların yerel ortamda çalıştırılmasıyla elde edilen gerçek terminal çıktıları [`local-verification-output.txt`](local-verification-output.txt) dosyasında kayıtlıdır:
-  - `npm test`: `10/10` test başarılı (`compare-data`, `fetch-opensky`, `security-config`).
+  - `npm test`: `11/11` test başarılı (`compare-data`, `fetch-opensky`, `security-config`).
   - `npm audit --audit-level=high`: `found 0 vulnerabilities`.
   - `npm run build`: `tsc --noEmit && vite build` (`dist/_headers` ve `dist/.well-known/security.txt` dosyalarının üretildiği doğrulandı).
 

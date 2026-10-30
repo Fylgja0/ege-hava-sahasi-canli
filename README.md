@@ -102,7 +102,7 @@ Uygulama, tarayıcıdan doğrudan dış API çağrısı **yapmaz**. Veriler `scr
   - `lamax = 40.5` (Kuzey sınırı)
   - `lomax = 30.5` (Doğu sınırı)
 - **Alan Hesabı ve Kota Uyumu:** $(40.5 - 36.5) \times (30.5 - 24.5) = 4^\circ \times 6^\circ = 24\text{ kare derece}$. Bu alan, OpenSky Network'ün $< 25\text{ kare derece}$ küçük alan kotasına (istek başına yalnızca 1 kredi tüketimi) tam uyumludur.
-- **Snapshot Saklama Sınırı (7 Günlük Geçmiş):** Otomatik veri toplama sıklığı **30 dakika** (saatte 2 ölçüm, günde 48 ölçüm) olduğundan, 7 günlük zaman serisi geçmişini eksiksiz saklamak üzere `MAX_SNAPSHOTS = 336` ($7 \times 24 \times 2 = 336$ kayıt) olarak yapılandırılmıştır.
+- **Snapshot Saklama Sınırı (`MAX_SNAPSHOTS = 336`):** Otomatik veri toplama iş akışı GitHub Actions üzerinde **30 dakikalık `cron` planıyla** (`*/30 * * * *`, ideal koşullarda saatte 2, günde 48 ölçüm) yapılandırılmıştır; yaklaşık 7 günlük zaman serisi geçmişini saklamak üzere `MAX_SNAPSHOTS = 336` ($7 \times 24 \times 2 = 336$ kayıt) sınırı uygulanır. *(Not: GitHub Actions `schedule` tetikleyicisi paylaşımlı kuyruk yoğunluğuna bağlı olarak gecikebildiğinden kesin 30 dakikalık gerçek zamanlı veri garantisi verilmez.)*
 
 ### Hata Yönetimi ve Veri Koruma İlkeleri
 `scripts/fetch-opensky.mjs` aşağıdaki durumları açıkça yakalar ve sınıflandırır:
@@ -135,12 +135,12 @@ flowchart LR
 
 ### Arayüzün `data` Dalındaki Veriyi Okuma ve Yenileme Yöntemi
 1. **Otomatik Veri Toplama (`.github/workflows/fetch-opensky.yml`):**
-   - Her 30 dakikada bir (`cron: '*/30 * * * *'`) veya GitHub Actions sekmesinden **manuel (`workflow_dispatch`)** olarak tetiklenir.
-   - `scripts/compare-data.mjs` yardımcısını kullanarak `refs/remotes/origin/data` dalındaki önceki dosyalarla yeni üretilen dosyaları karşılaştırır. Tekrarlayan API kesintilerinde yalnızca `lastAttempt.timestamp` / `lastAttempt.message` değişmişse her 30 dakikada bir gereksiz commit üretmez; gerçek veri (`fetchedAt`, `snapshots`) veya hata türü (`errorType`) değiştiğinde `data` dalını günceller.
+   - GitHub Actions `cron: '*/30 * * * *'` zamanlama planıyla (veya GitHub Actions sekmesinden **manuel `workflow_dispatch`** ile) tetiklenir. Bu sıklık bir GitHub Actions `cron` planıdır; GitHub'ın paylaşımlı çalıştırıcı (runner) kuyruğundaki yoğunluğa bağlı olarak gerçek çalıştırma zamanları gecikebilir ve **kesin 30 dakikalık veri tazeliği garantisi vermez** (veri yaşı 30 dakikayı aştığında arayüz otomatik olarak `Eski Veri Uyarısı` gösterir).
+   - `scripts/compare-data.mjs` yardımcısını kullanarak `refs/remotes/origin/data` dalındaki önceki dosyalarla yeni üretilen dosyaları karşılaştırır. Tekrarlayan API kesintilerinde yalnızca `lastAttempt.timestamp` / `lastAttempt.message` değişmişse gereksiz commit üretmez; gerçek veri (`fetchedAt`, `snapshots`) veya hata türü (`errorType`) değiştiğinde `data` dalını günceller.
 2. **İstemci Veri Kaynağı Önceliği ve Kota İzolasyonu (`src/dataService.ts`):**
    - `VITE_DATA_BASE_URL` ortam değişkeni tanımlıysa önce bu adresi kullanır.
    - Tanımlı değilse üretim derlemesinde (`import.meta.env.PROD`) ve GitHub Pages üzerinde varsayılan olarak `https://raw.githubusercontent.com/Fylgja0/ege-hava-sahasi-canli/data/data` adresinden herkese açık (`public`) `latest.json` ve `snapshots.json` dosyalarını okur.
-   - **Önemli Kota ve Güvenlik Gerçeği:** Uçuş verileri istemci tarafından `raw.githubusercontent.com` üzerinden herkese açık statik JSON olarak okunduğundan, **canlı web sayfasının (`https://ege-hava-sahasi-canli.pages.dev/`) sık yenilenmesi veya sayfa kazıması (scraping) OpenSky API kotasını doğrudan tüketmez**. OpenSky API'sine giden istekler yalnızca GitHub Actions üzerindeki zamanlanmış iş akışı (`fetch-opensky.yml`) tarafından 30 dakikada bir yapılır.
+   - **Önemli Kota ve Güvenlik Gerçeği:** Uçuş verileri istemci tarafından `raw.githubusercontent.com` üzerinden herkese açık statik JSON olarak okunduğundan, **canlı web sayfasının (`https://ege-hava-sahasi-canli.pages.dev/`) sık yenilenmesi veya sayfa kazıması (scraping) OpenSky API kotasını doğrudan tüketmez**. OpenSky API'sine giden istekler yalnızca GitHub Actions üzerindeki zamanlanmış iş akışı (`fetch-opensky.yml`) çalıştığında yapılır.
    - Yerel geliştirmede (`npm run dev`) doğrudan yerel `./data` dosyalarını okur.
    - Üretim ortamında uzak veri okunamazsa yerel paket yedeğine (`./data`) düşer; ancak bu durumda veriyi asla yeni/canlı gibi işaretlemez, `isStale = true` ve `Eski Veri (Yerel Yedek)` uyarısını aktif eder.
 3. **Canlı Arayüz Otomatik Yenileme (`src/main.ts`):**

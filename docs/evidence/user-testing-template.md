@@ -1,7 +1,7 @@
 # Kullanıcı Testi Kayıt Şablonu (2 Kullanıcı × 3 Görev)
 
-**Proje:** Ege Hava Sahası Canlı (`ege-hava-sahasi-canli`)  
-**Ders:** BVA 2245 Kullanıcı Arayüzü Tasarımı  
+**Proje:** Ege Hava Sahası Canlı (`ege-hava-sahasi-canli`)
+**Ders:** BVA 2245 Kullanıcı Arayüzü Tasarımı
 **Test Edilen Ortam:** `https://ege-hava-sahasi-canli.pages.dev/` (veya yerel `npm run preview`)
 
 > **Önemli Kural:** Bu şablon gerçek kullanıcı testleri sırasında doldurulmak üzere **boş** hazırlanmıştır. Gerçek katılımcılarla test yapılmadan hiçbir alan uydurma süre, başarı durumu veya yorumla doldurulmamalıdır.
