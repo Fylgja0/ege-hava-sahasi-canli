@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ege-hava-sahasi-canli.pages.dev/sitemap.xml

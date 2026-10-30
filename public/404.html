@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>404 — Sayfa Bulunamadı | Ege Hava Sahası Canlı</title>
+    <style>
+      :root {
+        --bg-primary: #060d14;
+        --bg-panel: #0b1622;
+        --border-subtle: #1e3448;
+        --text-primary: #eef7f5;
+        --text-secondary: #a8c5da;
+        --accent: #2dd4bf;
+        --accent-dark: #042f2e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+      }
+
+      .error-card {
+        max-width: 34rem;
+        width: 100%;
+        background-color: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: 0.75rem;
+        padding: 2rem;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      .status-code {
+        display: inline-block;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.875rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 999px;
+        padding: 0.2rem 0.75rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.625rem;
+        line-height: 1.3;
+      }
+
+      p {
+        margin: 0 0 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      .home-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.65rem 1.25rem;
+        background-color: var(--accent);
+        color: var(--accent-dark);
+        font-weight: 700;
+        text-decoration: none;
+        border-radius: 0.5rem;
+      }
+
+      .home-link:hover {
+        filter: brightness(1.08);
+      }
+
+      .home-link:focus-visible {
+        outline: 3px solid var(--text-primary);
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="error-card" aria-labelledby="error-title">
+      <span class="status-code" aria-hidden="true">HTTP 404</span>
+      <h1 id="error-title">Sayfa Bulunamadı</h1>
+      <p>
+        Aradığınız adres veya kaynak <strong>Ege Hava Sahası Canlı</strong> uygulaması üzerinde
+        bulunmamaktadır. Adresi yanlış yazmış olabilirsiniz veya bağlantı kaldırılmış olabilir.
+      </p>
+      <a href="/" class="home-link">Ana Uygulamaya Dön</a>
+    </main>
+  </body>
+</html>

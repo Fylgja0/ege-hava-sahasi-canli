@@ -8,9 +8,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-test('security-config: public/_headers HSTS (max-age=31536000, includeSubDomains olmadan) ve mevcut güvenlik başlıklarını korur', async () => {
+test('security-config: public/_headers ! Access-Control-Allow-Origin, HSTS (max-age=31536000, includeSubDomains olmadan) ve mevcut güvenlik başlıklarını korur', async () => {
   const headersRaw = await fs.readFile(path.join(ROOT_DIR, 'public', '_headers'), 'utf8');
 
+  assert.match(
+    headersRaw,
+    /^\s*!\s+Access-Control-Allow-Origin\s*$/m,
+    'Cloudflare Pages varsayılan CORS başlığını kaldıran ! Access-Control-Allow-Origin direktifi bulunmalı'
+  );
   assert.match(
     headersRaw,
     /^\s*Strict-Transport-Security:\s*max-age=31536000\s*$/m,
@@ -24,7 +29,9 @@ test('security-config: public/_headers HSTS (max-age=31536000, includeSubDomains
   assert.ok(headersRaw.includes('Referrer-Policy: strict-origin-when-cross-origin'));
   assert.ok(headersRaw.includes('X-Frame-Options: DENY'));
   assert.ok(headersRaw.includes('Permissions-Policy: geolocation=(), camera=(), microphone=()'));
-  assert.ok(headersRaw.includes("Content-Security-Policy: default-src 'self'; script-src 'self';"));
+  assert.ok(headersRaw.includes("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"));
+  assert.ok(headersRaw.includes('img-src \'self\' data: https://*.tile.openstreetmap.org;'));
+  assert.ok(headersRaw.includes('connect-src \'self\' https://raw.githubusercontent.com;'));
 });
 
 test('security-config: public/.well-known/security.txt RFC 9116 alanlarını içerir ve uydurma e-posta içermez', async () => {
@@ -109,4 +116,27 @@ test('security-config: DFD_STRIDE.md 10 ayrı tehdit senaryosu (T-01..T-10), ris
   assert.ok(dfdStride.includes('ölçülmüş kesin gerçekler değildir'));
   assert.ok(dfdStride.includes('Özel Atanmış Tehdit İncelemesi: Bot / Scraper Kaynaklı Hizmet Tüketimi (`T-08`)'));
   assert.ok(readme.includes('kesin 30 dakikalık veri tazeliği garantisi vermez'));
+});
+
+test('security-config: public/404.html, public/robots.txt ve public/sitemap.xml standartlara uygun ve erişilebilirdir', async () => {
+  const notFoundHtml = await fs.readFile(path.join(ROOT_DIR, 'public', '404.html'), 'utf8');
+  const robotsTxt = await fs.readFile(path.join(ROOT_DIR, 'public', 'robots.txt'), 'utf8');
+  const sitemapXml = await fs.readFile(path.join(ROOT_DIR, 'public', 'sitemap.xml'), 'utf8');
+
+  assert.ok(notFoundHtml.includes('<html lang="tr">'), '404.html Türkçe dil özniteliğine sahip olmalı');
+  assert.ok(notFoundHtml.includes('<main'), '404.html erişilebilir <main> bölgesi içermeli');
+  assert.ok(notFoundHtml.includes('Sayfa Bulunamadı'), '404.html sayfanın bulunamadığını açıkça bildirmeli');
+  assert.ok(notFoundHtml.includes('href="/"'), '404.html ana uygulamaya dönüş bağlantısı içermeli');
+  assert.ok(!notFoundHtml.includes('<script'), '404.html CSP script-src ihlali yaratacak satır içi script içermemeli');
+
+  assert.match(robotsTxt, /^User-agent:\s*\*$/m);
+  assert.match(robotsTxt, /^Allow:\s*\/$/m);
+  assert.match(
+    robotsTxt,
+    /^Sitemap:\s*https:\/\/ege-hava-sahasi-canli\.pages\.dev\/sitemap\.xml$/m
+  );
+
+  assert.ok(sitemapXml.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
+  assert.ok(sitemapXml.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'));
+  assert.ok(sitemapXml.includes('<loc>https://ege-hava-sahasi-canli.pages.dev/</loc>'));
 });
