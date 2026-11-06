@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-06T16:05:18.186Z",
+  "updatedAt": "2026-11-06T21:41:02.505Z",
   "isDemo": false,
   "bbox": {
     "lamin": 36.5,
@@ -8,7 +8,7 @@
     "lomax": 30.5,
     "areaSqDeg": 24
   },
-  "totalSnapshots": 52,
+  "totalSnapshots": 53,
   "snapshots": [
     {
       "timestamp": "2026-10-25T18:54:29.713Z",
@@ -578,6 +578,17 @@
       "airborneCount": 63,
       "avgAltitudeM": 9050,
       "avgVelocityKmh": 768,
+      "source": "opensky-live",
+      "isDemo": false,
+      "status": "ok"
+    },
+    {
+      "timestamp": "2026-11-06T21:41:02.505Z",
+      "unixTime": 1794001261,
+      "aircraftCount": 29,
+      "airborneCount": 29,
+      "avgAltitudeM": 8950,
+      "avgVelocityKmh": 725,
       "source": "opensky-live",
       "isDemo": false,
       "status": "ok"
